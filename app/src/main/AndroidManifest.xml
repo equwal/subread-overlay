@@ -33,6 +33,15 @@
             This service reads no notification. The system keeps it running, so the overlay
             needs no foreground service and no notification of its own.
         -->
+        <!--
+            Gives the position of the player to a reader app, and takes play, pause and seek from
+            it. KOReader with the SubRead plugin uses this. See PlayerProvider.
+        -->
+        <provider
+            android:name=".PlayerProvider"
+            android:authorities="space.subread.overlay.player"
+            android:exported="true" />
+
         <service
             android:name=".MediaListener"
             android:exported="true"

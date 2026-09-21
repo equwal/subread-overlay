@@ -58,6 +58,25 @@ file, and the subtitle file has one clock for the whole book. Shift the
 subtitles with the timing row at the start of each file. One `.m4b` for one
 book has no such problem.
 
+## For reader apps
+
+A reader app has no notification access, so it cannot see the position of
+the player. This app answers for it, with a content provider at
+`content://space.subread.overlay.player/state`. A query returns one row with
+the column `state`:
+
+```
+playing=1;position=96153;speed=1.0;package=de.ph1b.audiobook
+```
+
+The position is in milliseconds, for the moment of the query. A problem is
+`error=no_notification_access` or `error=no_player`. `call` with the method
+`play`, `pause` or `seek` (the argument is the position in milliseconds)
+controls the player. The panel does not need to be on the screen.
+
+The [SubRead plugin for KOReader](https://github.com/equwal/subread.koplugin)
+uses this to turn the pages with the audiobook.
+
 ## Build
 
 ```
