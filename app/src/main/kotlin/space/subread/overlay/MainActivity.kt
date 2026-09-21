@@ -82,7 +82,12 @@ class MainActivity : Activity() {
         }, wide(top = 24))
 
         note(getString(R.string.make_subtitles), top = 32)
-        content.addView(button(getString(R.string.make_subtitles_action)) { open(SUBREAD) }, wide())
+        val subread = packageManager.getLaunchIntentForPackage(SUBREAD_PACKAGE)
+        if (subread != null) {
+            content.addView(button(getString(R.string.open_subread)) { runCatching { startActivity(subread) } }, wide())
+        } else {
+            content.addView(button(getString(R.string.install_subread)) { open(SUBREAD_INSTALL) }, wide())
+        }
         if (BuildConfig.DONATE_LINK) content.addView(button(getString(R.string.donate)) { open(KOFI) }, wide())
     }
 
@@ -198,7 +203,9 @@ class MainActivity : Activity() {
 
     private companion object {
         const val PICK_SUBTITLES = 1
-        const val SUBREAD = "https://subread.space/?utm_source=overlay_app"
+        const val SUBREAD_PACKAGE = "space.subread.app"
+        // The release page of the SubRead app. Each release has the APK as SubRead.apk.
+        const val SUBREAD_INSTALL = "https://github.com/equwal/subread-android/releases/latest"
         const val KOFI = "https://ko-fi.com/truex"
     }
 }

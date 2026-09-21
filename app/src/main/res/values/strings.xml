@@ -34,7 +34,8 @@
     <string name="status_before_first_line">Before the first line.</string>
     <string name="no_dictionary">No app took the word.</string>
 
-    <string name="make_subtitles">No .srt for your audiobook? SubRead makes it from the audiobook and its ebook.</string>
-    <string name="make_subtitles_action">Open subread.space</string>
+    <string name="make_subtitles">No .srt for your audiobook? The SubRead app makes it from the audiobook and its ebook, on this device.</string>
+    <string name="open_subread">Open SubRead</string>
+    <string name="install_subread">Install SubRead</string>
     <string name="donate">Support the work on Ko-fi</string>
 </resources>
