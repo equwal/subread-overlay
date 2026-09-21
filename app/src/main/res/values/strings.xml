@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">SubRead Overlay</string>
+    <string name="listener_label">SubRead Overlay: position of the media player</string>
+
+    <string name="about">Shows the lines of a subtitle file (.srt) over the app that plays the audiobook or the video: Voice, VLC, mpv, YouTube, a podcast app. The line follows the position of the player. Tap a word to select it, drag to select more, then send it to a dictionary.</string>
+    <string name="privacy">This app has no network permission. Nothing leaves the device.</string>
+
+    <string name="step_overlay">1. Show over other apps</string>
+    <string name="step_overlay_why">Android must allow the subtitle panel on top of the media player.</string>
+    <string name="step_listener">2. Read the position of the media player</string>
+    <string name="step_listener_why">Android gives the position of other apps only to an app with notification access. SubRead Overlay uses this access for the media position, the speed and play or pause. It does not read, keep or send a notification.</string>
+    <string name="step_file">3. Subtitle file</string>
+    <string name="step_file_none">No file. Only .srt for now.</string>
+    <plurals name="step_file_cues">
+        <item quantity="one">%1$s, %2$d line</item>
+        <item quantity="other">%1$s, %2$d lines</item>
+    </plurals>
+    <string name="step_dictionary">4. Dictionary for \"Look up\"</string>
+    <string name="dictionary_ask">Ask each time</string>
+    <string name="dictionary_none">No app on this device takes a selected text. Install a dictionary that has an entry in the text selection menu.</string>
+    <string name="step_size">5. Text size</string>
+    <string name="allowed">Allowed</string>
+    <string name="allow">Allow</string>
+    <string name="choose">Choose</string>
+    <string name="show">Show the subtitles</string>
+    <string name="hide">Hide the subtitles</string>
+    <string name="need_both">Allow steps 1 and 2 first.</string>
+    <string name="listener_starting">Android starts the listener. Try again in a moment.</string>
+
+    <string name="status_no_file">Choose a subtitle file in SubRead Overlay.</string>
+    <string name="status_empty_file">The subtitle file has no lines that the app can read.</string>
+    <string name="status_no_player">No media player. Start the audiobook or the video.</string>
+    <string name="status_before_first_line">Before the first line.</string>
+    <string name="no_dictionary">No app took the word.</string>
+
+    <string name="make_subtitles">No .srt for your audiobook? SubRead makes it from the audiobook and its ebook.</string>
+    <string name="make_subtitles_action">Open subread.space</string>
+    <string name="donate">Support the work on Ko-fi</string>
+</resources>
