@@ -1,0 +1,1 @@
+Reader apps can read the position of the player and control it: KOReader with the SubRead plugin turns the pages with the audiobook. The last button opens the SubRead app, or its download page when it is not installed.
