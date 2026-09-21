@@ -1,0 +1,1 @@
+First release on F-Droid. Shows the lines of an .srt file over the media player that plays, in time with it. Tap a word to select it and send it to a dictionary.
