@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
 
     <!-- The subtitle line is drawn over the media player. No network permission: nothing leaves the device. -->
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
@@ -40,8 +41,9 @@
         -->
         <provider
             android:name=".PlayerProvider"
-            android:authorities="space.subread.overlay.player"
-            android:exported="true" />
+            android:authorities="${applicationId}.player"
+            android:exported="true"
+            tools:ignore="ExportedContentProvider" />
 
         <service
             android:name=".MediaListener"

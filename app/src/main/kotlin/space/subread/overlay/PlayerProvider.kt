@@ -83,7 +83,8 @@ class PlayerProvider : ContentProvider() {
     override fun delete(uri: Uri, selection: String?, selectionArgs: Array<String>?): Int = 0
 
     companion object {
-        const val AUTHORITY = "space.subread.overlay.player"
+        // The debug build has its own authority, so it installs next to the release.
+        const val AUTHORITY = BuildConfig.APPLICATION_ID + ".player"
         const val COLUMN_STATE = "state"
         const val METHOD_PLAY = "play"
         const val METHOD_PAUSE = "pause"
