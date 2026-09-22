@@ -11,10 +11,12 @@ import android.net.Uri
 import android.os.Bundle
 import android.provider.OpenableColumns
 import android.provider.Settings
+import android.view.Gravity
 import android.view.View
 import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.ScrollView
+import android.widget.SeekBar
 import android.widget.TextView
 import android.widget.Toast
 import androidx.core.net.toUri
@@ -75,6 +77,18 @@ class MainActivity : Activity() {
         step(R.string.step_dictionary, dictionaryName(), getString(R.string.choose)) { chooseDictionary() }
         step(R.string.step_size, "${store.textSizeSp.toInt()} sp", null) {}
         row(button("−") { size(-2f) }, button("+") { size(2f) })
+        step(R.string.step_transparency, getString(R.string.step_transparency_why), null) {}
+        content.addView(transparencySlider(), wide())
+        val around = store.linesAround
+        step(
+            R.string.step_lines,
+            getString(if (around) R.string.lines_three else R.string.lines_one),
+            getString(if (around) R.string.lines_show_one else R.string.lines_show_three),
+        ) {
+            store.linesAround = !around
+            MediaListener.instance?.reload()
+            draw()
+        }
 
         val shown = store.shown && MediaListener.instance != null
         content.addView(button(getString(if (shown) R.string.hide else R.string.show)) { togglePanel() }.apply {
@@ -106,6 +120,38 @@ class MainActivity : Activity() {
         store.textSizeSp += change
         MediaListener.instance?.reload()
         draw()
+    }
+
+    /** A slider from 0 % (a white panel) to 90 %. The panel changes while the finger moves. */
+    @SuppressLint("SetTextI18n")
+    private fun transparencySlider(): View {
+        val label = TextView(this).apply {
+            setTextColor(Color.BLACK)
+            textSize = 15f
+        }
+        val slider = SeekBar(this).apply {
+            max = 90
+            progress = store.transparencyPercent
+            setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+                override fun onProgressChanged(bar: SeekBar, value: Int, fromUser: Boolean) {
+                    label.text = "$value %"
+                    if (fromUser) {
+                        store.transparencyPercent = value
+                        MediaListener.instance?.reload()
+                    }
+                }
+
+                override fun onStartTrackingTouch(bar: SeekBar) = Unit
+
+                override fun onStopTrackingTouch(bar: SeekBar) = Unit
+            })
+        }
+        label.text = "${slider.progress} %"
+        return LinearLayout(this).apply {
+            gravity = Gravity.CENTER_VERTICAL
+            addView(slider, LinearLayout.LayoutParams(0, -2, 1f))
+            addView(label, LinearLayout.LayoutParams(-2, -2).apply { leftMargin = dp(12) })
+        }
     }
 
     private fun dictionaryName(): String {

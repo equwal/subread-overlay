@@ -32,6 +32,16 @@ class Store(context: Context) {
         get() = prefs.getFloat("text_size", 22f)
         set(value) = prefs.edit { putFloat("text_size", value.coerceIn(12f, 60f)) }
 
+    /** How much of the player shows through the panel, 0 to 90 percent. The text stays black. */
+    var transparencyPercent: Int
+        get() = prefs.getInt("transparency", 30)
+        set(value) = prefs.edit { putInt("transparency", value.coerceIn(0, 90)) }
+
+    /** True: the panel shows the line before and the line after the line of now too. */
+    var linesAround: Boolean
+        get() = prefs.getBoolean("lines_around", false)
+        set(value) = prefs.edit { putBoolean("lines_around", value) }
+
     /** Where the panel is, in pixels from the top left of the screen. */
     var x: Int
         get() = prefs.getInt("x", 0)

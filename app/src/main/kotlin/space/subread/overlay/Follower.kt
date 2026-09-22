@@ -4,7 +4,6 @@ import android.media.session.MediaController
 import android.media.session.PlaybackState
 import android.os.Handler
 import android.os.SystemClock
-import space.subread.overlay.core.Cue
 import space.subread.overlay.core.CueIndex
 import space.subread.overlay.core.PlayClock
 
@@ -22,8 +21,11 @@ import space.subread.overlay.core.PlayClock
 class Follower(
     private val handler: Handler,
     private val now: () -> Long = SystemClock::elapsedRealtime,
-    /** The line that is on, and true when there is a player to follow. */
-    private val onLine: (Cue?, Boolean) -> Unit,
+    /**
+     * The index of the line that is on in [index] (-1 before the first line), true when there is
+     * a player to follow, and true when that player plays.
+     */
+    private val onLine: (Int, Boolean, Boolean) -> Unit,
 ) {
     var index: CueIndex = CueIndex(emptyList())
         set(value) {
@@ -64,6 +66,21 @@ class Follower(
         update()
     }
 
+    /** True while the player that is followed plays. */
+    val playing: Boolean
+        get() = controller?.playbackState?.state == PlaybackState.STATE_PLAYING
+
+    /** Pauses the player. True when it played. */
+    fun pause(): Boolean {
+        if (!playing) return false
+        controller?.transportControls?.pause()
+        return true
+    }
+
+    fun play() {
+        controller?.transportControls?.play()
+    }
+
     fun stop() {
         handler.removeCallbacks(wake)
         controller?.unregisterCallback(callback)
@@ -98,12 +115,12 @@ class Follower(
         handler.removeCallbacks(wake)
         val clock = clock()
         if (clock == null) {
-            onLine(null, false)
+            onLine(-1, false, false)
             return
         }
         val position = clock.positionAt(now()) + offsetMs
         val at = index.indexAt(position)
-        onLine(index.cues.getOrNull(at), true)
+        onLine(at, true, clock.playing)
         val next = index.nextChangeAfter(position) ?: return
         clock.waitUntil(next - offsetMs, now())?.let { handler.postDelayed(wake, it) }
     }

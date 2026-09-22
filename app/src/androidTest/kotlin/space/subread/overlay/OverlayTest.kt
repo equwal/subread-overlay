@@ -71,9 +71,20 @@ class OverlayViewTest {
         override fun onDragEnd() = Unit
         override fun onClose() = Unit
         override fun onLookUp(word: String) { lookedUp += word }
+        override fun onTogglePlay() = Unit
         override fun onShiftLines(steps: Int) = Unit
         override fun onNudge(ms: Long) = Unit
     }
+
+    /** The x of the middle of the character at [offset], in the panel. */
+    private fun OverlayView.middleOf(offset: Int): Float {
+        val layout = text.layout
+        return text.totalPaddingLeft + (layout.getPrimaryHorizontal(offset) + layout.getPrimaryHorizontal(offset + 1)) / 2
+    }
+
+    /** A y just over the baseline of the row of the character at [offset], in the panel. */
+    private fun OverlayView.rowOf(offset: Int): Float =
+        text.totalPaddingTop + text.layout.getLineBaseline(text.layout.getLineForOffset(offset)) - 5f
 
     @Test
     fun aTapSelectsTheWordUnderTheFingerAndLookUpSendsIt() {
@@ -87,18 +98,15 @@ class OverlayViewTest {
             }
             InstrumentationRegistry.getInstrumentation().waitForIdleSync()
             scenario.onActivity {
-                val layout = panel.text.layout
                 val start = panel.line.indexOf("along")
                 // The middle of the third letter of "along".
-                val x = panel.text.totalPaddingLeft + (layout.getPrimaryHorizontal(start + 2) + layout.getPrimaryHorizontal(start + 3)) / 2
-                val y = panel.text.totalPaddingTop + layout.getLineBaseline(0) - 5f
-                panel.selectAt(x, y)
+                panel.selectAt(panel.middleOf(start + 2), panel.rowOf(start + 2))
                 assertEquals(start..start + 4, panel.selection)
 
                 // A drag to the last word selects the three words.
-                val end = panel.text.totalPaddingLeft + layout.getPrimaryHorizontal(panel.line.length - 1) - 2f
-                panel.selectAt(end, y, extend = true)
-                assertEquals(start..panel.line.lastIndex, panel.selection)
+                val last = panel.line.lastIndex
+                panel.selectAt(panel.middleOf(last), panel.rowOf(last), extend = true)
+                assertEquals(start..last, panel.selection)
 
                 val found = arrayListOf<android.view.View>()
                 panel.findViewsWithText(found, "Look up", android.view.View.FIND_VIEWS_WITH_TEXT)
@@ -108,6 +116,50 @@ class OverlayViewTest {
                 // The next line has no selection from the line before.
                 panel.showLine("the next line")
                 assertNull(panel.selection)
+            }
+        }
+    }
+
+    @Test
+    fun theLinesAroundAreOnTheirOwnRowsAndAWordOfThemCanBeSelected() {
+        ActivityScenario.launch(MainActivity::class.java).use { scenario ->
+            lateinit var panel: OverlayView
+            scenario.onActivity {
+                panel = OverlayView(it, events)
+                panel.setTextSize(30f)
+                it.addContentView(panel, ViewGroup.LayoutParams(-1, -2))
+                panel.showLine("the line of now", "the line before", "the line after")
+            }
+            InstrumentationRegistry.getInstrumentation().waitForIdleSync()
+            scenario.onActivity {
+                assertEquals("the line before\nthe line of now\nthe line after", panel.line)
+                val layout = panel.text.layout
+                val now = panel.line.indexOf("the line of now")
+                val start = panel.line.indexOf("after")
+                assertTrue("each line on its own row", layout.getLineForOffset(0) < layout.getLineForOffset(now))
+                assertTrue("each line on its own row", layout.getLineForOffset(now) < layout.getLineForOffset(start))
+                panel.selectAt(panel.middleOf(start + 1), panel.rowOf(start + 1))
+                assertEquals(start..start + 4, panel.selection)
+
+                // The same lines again change nothing; one line alone is one row again.
+                panel.showLine("the line of now", "the line before", "the line after")
+                assertEquals(start..start + 4, panel.selection)
+                panel.showLine("the line of now")
+                assertEquals("the line of now", panel.line)
+                assertNull(panel.selection)
+            }
+        }
+    }
+
+    @Test
+    fun theTransparencyIsTheAlphaOfTheBackground() {
+        ActivityScenario.launch(MainActivity::class.java).use { scenario ->
+            scenario.onActivity {
+                val panel = OverlayView(it, events)
+                panel.setTransparency(40)
+                assertEquals(153, panel.background.alpha)
+                panel.setTransparency(0)
+                assertEquals(255, panel.background.alpha)
             }
         }
     }
@@ -141,7 +193,7 @@ class FollowerTest {
             session.setPlaybackState(state(PlaybackState.STATE_PAUSED, 1_500))
             session.isActive = true
             onMain {
-                follower = Follower(main) { cue, _ -> lines += cue?.text }
+                follower = Follower(main) { at, _, _ -> lines += follower.index.cues.getOrNull(at)?.text }
                 follower.index = index
                 follower.follow(listOf(MediaController(context, session.sessionToken)))
             }
@@ -184,7 +236,7 @@ class FollowerTest {
             session.setPlaybackState(state(PlaybackState.STATE_PLAYING, PlaybackState.PLAYBACK_POSITION_UNKNOWN))
             session.isActive = true
             onMain {
-                follower = Follower(main) { cue, _ -> lines += cue?.text }
+                follower = Follower(main) { at, _, _ -> lines += follower.index.cues.getOrNull(at)?.text }
                 follower.index = CueIndex(listOf(Cue(0, 300, "first"), Cue(400, 900, "second")))
                 follower.follow(listOf(MediaController(context, session.sessionToken)))
             }
@@ -204,9 +256,47 @@ class FollowerTest {
     fun noPlayerIsSaidSo() {
         val players = CopyOnWriteArrayList<Boolean>()
         onMain {
-            val follower = Follower(main) { _, hasPlayer -> players += hasPlayer }
+            val follower = Follower(main) { _, hasPlayer, _ -> players += hasPlayer }
             follower.follow(emptyList())
         }
         assertEquals(false, players.last())
+    }
+
+    @Test
+    fun aLookupPausesThePlayerAndTheButtonStartsItAgain() {
+        val session = MediaSession(context, "test player")
+        val playing = CopyOnWriteArrayList<Boolean>()
+        var plays = 0
+        var pauses = 0
+        session.setCallback(object : MediaSession.Callback() {
+            override fun onPlay() { plays++ }
+            override fun onPause() { pauses++ }
+        }, main)
+        lateinit var follower: Follower
+        try {
+            session.setPlaybackState(state(PlaybackState.STATE_PLAYING, 1_500))
+            session.isActive = true
+            onMain {
+                follower = Follower(main) { _, _, isPlaying -> playing += isPlaying }
+                follower.index = index
+                follower.follow(listOf(MediaController(context, session.sessionToken)))
+            }
+            val until = SystemClock.elapsedRealtime() + 5_000
+            while (playing.lastOrNull() != true && SystemClock.elapsedRealtime() < until) Thread.sleep(20)
+            assertEquals(true, playing.last())
+
+            onMain { assertTrue("a player that plays is paused", follower.pause()) }
+            session.setPlaybackState(state(PlaybackState.STATE_PAUSED, 1_500))
+            while (playing.lastOrNull() != false && SystemClock.elapsedRealtime() < until) Thread.sleep(20)
+            assertEquals(false, playing.last())
+            onMain { assertEquals("a paused player is not paused again", false, follower.pause()) }
+            onMain { follower.play() }
+            while ((plays < 1 || pauses < 1) && SystemClock.elapsedRealtime() < until) Thread.sleep(20)
+            assertEquals(1, pauses)
+            assertEquals(1, plays)
+        } finally {
+            onMain { follower.stop() }
+            session.release()
+        }
     }
 }

@@ -46,7 +46,7 @@ class MediaListener : NotificationListenerService(), OverlayView.Events {
 
     override fun onListenerConnected() {
         store = Store(this)
-        follower = Follower(handler) { cue, hasPlayer -> show(cue?.text, hasPlayer) }
+        follower = Follower(handler) { at, hasPlayer, playing -> show(at, hasPlayer, playing) }
         sessions.addOnActiveSessionsChangedListener(onSessions, me, handler)
         instance = this
         if (store.shown) showPanel()
@@ -82,6 +82,7 @@ class MediaListener : NotificationListenerService(), OverlayView.Events {
     fun reload() {
         val view = panel ?: return
         view.setTextSize(store.textSizeSp)
+        view.setTransparency(store.transparencyPercent)
         view.showOffset(store.offsetMs)
         follower.offsetMs = store.offsetMs
         val file = store.subtitles
@@ -105,13 +106,17 @@ class MediaListener : NotificationListenerService(), OverlayView.Events {
         panel = null
     }
 
-    private fun show(line: String?, hasPlayer: Boolean) {
+    private fun show(at: Int, hasPlayer: Boolean, playing: Boolean) {
         val view = panel ?: return
+        view.showPlaying(playing)
+        val cues = follower.index.cues
+        val line = cues.getOrNull(at)?.text
         when {
             store.subtitles == null -> view.showStatus(getString(R.string.status_no_file))
-            follower.index.size == 0 -> view.showStatus(getString(R.string.status_empty_file))
+            cues.isEmpty() -> view.showStatus(getString(R.string.status_empty_file))
             !hasPlayer -> view.showStatus(getString(R.string.status_no_player))
             line == null -> view.showStatus(getString(R.string.status_before_first_line))
+            store.linesAround -> view.showLine(line, cues.getOrNull(at - 1)?.text, cues.getOrNull(at + 1)?.text)
             else -> view.showLine(line)
         }
     }
@@ -129,10 +134,16 @@ class MediaListener : NotificationListenerService(), OverlayView.Events {
 
     override fun onClose() = hidePanel()
 
+    /** The player pauses for the lookup. The play button of the panel starts it again. */
     override fun onLookUp(word: String) {
+        follower.pause()
         runCatching { startActivity(Lookup.intent(word, store.dictionary)) }.onFailure {
             Toast.makeText(this, R.string.no_dictionary, Toast.LENGTH_LONG).show()
         }
+    }
+
+    override fun onTogglePlay() {
+        if (!follower.pause()) follower.play()
     }
 
     override fun onShiftLines(steps: Int) {

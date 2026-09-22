@@ -3,7 +3,8 @@ SubRead Overlay shows the lines of a subtitle file (.srt) over the app that play
 <b>What it does</b>
 
 * Works with each player that publishes an Android media session: Voice, VLC, mpv-android, podcast apps and more. No player needs a change.
-* Tap a word to select it. Drag to select more words. "Look up" sends the selection to a dictionary, a translator or a flash card app. Each app with an entry in the text selection menu can be the target.
+* Tap a word to select it. Drag to select more words. "Look up" pauses the player and sends the selection to a dictionary, a translator or a flash card app. Each app with an entry in the text selection menu can be the target. A button on the panel starts the player again.
+* On request the panel shows the line before and the line after too, and lets the player show through.
 * The line stays on the panel until the next line starts, so there is time to look a word up.
 * A timing row shifts the subtitles by half a second, or makes the line before or the next line the line of now.
 * Black on white and nothing that moves: usable on an e-ink screen.

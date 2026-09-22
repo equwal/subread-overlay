@@ -20,6 +20,13 @@
     <string name="dictionary_ask">Ask each time</string>
     <string name="dictionary_none">No app on this device takes a selected text. Install a dictionary that has an entry in the text selection menu.</string>
     <string name="step_size">5. Text size</string>
+    <string name="step_transparency">6. See-through panel</string>
+    <string name="step_transparency_why">How much of the player shows through the panel. The text stays black.</string>
+    <string name="step_lines">7. Lines around the line</string>
+    <string name="lines_one">One line: the line that the narrator reads.</string>
+    <string name="lines_three">Three lines: the line before and the line after too, small and grey. The panel grows to fit them.</string>
+    <string name="lines_show_three">Show three lines</string>
+    <string name="lines_show_one">Show one line</string>
     <string name="allowed">Allowed</string>
     <string name="allow">Allow</string>
     <string name="choose">Choose</string>

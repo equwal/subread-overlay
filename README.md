@@ -25,11 +25,16 @@ the audiobook and its ebook, in the browser or on
    Aedict, AnkiDroid, a translator).
 5. Press "Show the subtitles", then start the player.
 
+Two settings change the panel: how much of the player shows through it, and
+whether it shows the line before and the line after the line of now.
+
 On the panel:
 
 - `≡` moves the panel.
 - A tap selects the word under the finger. A drag selects more words.
-  "Look up" sends the selection to the dictionary. "Copy" copies it.
+  "Look up" pauses the player and sends the selection to the dictionary.
+  "Copy" copies it.
+- `▶` starts the player again after a lookup. `⏸` pauses it.
 - `⋯` opens the timing row. `−0.5 s` and `+0.5 s` shift the subtitles.
   `◀ line` and `line ▶` make the line before, or the next line, the line of
   now. Use them when the media has an intro that the subtitle file does not
