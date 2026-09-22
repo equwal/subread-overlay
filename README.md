@@ -33,7 +33,8 @@ On the panel:
 - `≡` moves the panel.
 - A tap selects the word under the finger. A drag selects more words.
   "Look up" pauses the player and sends the selection to the dictionary.
-  "Copy" copies it.
+  "Share" opens the share sheet of Android, for an app without an entry in
+  the text selection menu. "Copy" copies it.
 - `▶` starts the player again after a lookup. `⏸` pauses it.
 - `⋯` opens the timing row. `−0.5 s` and `+0.5 s` shift the subtitles.
   `◀ line` and `line ▶` make the line before, or the next line, the line of

@@ -68,6 +68,11 @@ object Lookup {
     /** The intent that each app with "process text" in its manifest takes. It is what a text selection menu sends. */
     fun probe(): Intent = Intent(Intent.ACTION_PROCESS_TEXT).setType("text/plain")
 
+    /** The share sheet of Android: each app that takes a text, also one without "process text". */
+    fun share(word: String): Intent =
+        Intent.createChooser(Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, word), null)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+
     fun intent(word: String, chosen: ComponentName?): Intent {
         val send = probe()
             .putExtra(Intent.EXTRA_PROCESS_TEXT, word)

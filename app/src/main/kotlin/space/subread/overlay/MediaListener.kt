@@ -142,6 +142,11 @@ class MediaListener : NotificationListenerService(), OverlayView.Events {
         }
     }
 
+    override fun onShare(word: String) {
+        follower.pause()
+        runCatching { startActivity(Lookup.share(word)) }
+    }
+
     override fun onTogglePlay() {
         if (!follower.pause()) follower.play()
     }

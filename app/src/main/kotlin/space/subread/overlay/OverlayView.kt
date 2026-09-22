@@ -37,6 +37,8 @@ class OverlayView(context: Context, private val events: Events) : LinearLayout(c
         fun onDragEnd()
         fun onClose()
         fun onLookUp(word: String)
+        /** "Share": the selection goes to an app that the user picks in the share sheet. */
+        fun onShare(word: String)
         /** The play button: pause the player when it plays, else start it. */
         fun onTogglePlay()
         fun onShiftLines(steps: Int)
@@ -85,6 +87,7 @@ class OverlayView(context: Context, private val events: Events) : LinearLayout(c
 
         lookUpRow.gravity = Gravity.END
         lookUpRow.addView(button("Copy", null) { copy() }, wrap())
+        lookUpRow.addView(button("Share", null) { share() }, wrap())
         lookUpRow.addView(button("Look up", null) { lookUp() }, wrap())
         lookUpRow.visibility = View.GONE
         addView(lookUpRow, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT))
@@ -191,6 +194,10 @@ class OverlayView(context: Context, private val events: Events) : LinearLayout(c
 
     private fun lookUp() {
         events.onLookUp(selected() ?: return)
+    }
+
+    private fun share() {
+        events.onShare(selected() ?: return)
     }
 
     private fun copy() {

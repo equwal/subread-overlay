@@ -66,11 +66,13 @@ class WordsTest {
 class OverlayViewTest {
 
     private val lookedUp = CopyOnWriteArrayList<String>()
+    private val shared = CopyOnWriteArrayList<String>()
     private val events = object : OverlayView.Events {
         override fun onDrag(dx: Float, dy: Float) = Unit
         override fun onDragEnd() = Unit
         override fun onClose() = Unit
         override fun onLookUp(word: String) { lookedUp += word }
+        override fun onShare(word: String) { shared += word }
         override fun onTogglePlay() = Unit
         override fun onShiftLines(steps: Int) = Unit
         override fun onNudge(ms: Long) = Unit
@@ -112,6 +114,10 @@ class OverlayViewTest {
                 panel.findViewsWithText(found, "Look up", android.view.View.FIND_VIEWS_WITH_TEXT)
                 found.single().performClick()
                 assertEquals(listOf("along is easy"), lookedUp)
+                found.clear()
+                panel.findViewsWithText(found, "Share", android.view.View.FIND_VIEWS_WITH_TEXT)
+                found.single().performClick()
+                assertEquals(listOf("along is easy"), shared)
 
                 // The next line has no selection from the line before.
                 panel.showLine("the next line")
