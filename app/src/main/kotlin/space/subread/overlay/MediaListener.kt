@@ -12,6 +12,7 @@ import android.view.Gravity
 import android.view.WindowManager
 import android.widget.Toast
 import space.subread.overlay.core.CueIndex
+import space.subread.overlay.core.LiveLines
 import space.subread.overlay.core.Srt
 import kotlin.concurrent.thread
 
@@ -21,6 +22,9 @@ import kotlin.concurrent.thread
  * Android gives the media sessions of other apps only to a notification listener. This service
  * reads no notification: it has no `onNotificationPosted`. The system keeps a listener running,
  * so the panel needs no foreground service and no notification of its own.
+ *
+ * A caption app can send lines through [PlayerProvider]. While it does, the panel shows its
+ * newest line and not the subtitle file.
  */
 class MediaListener : NotificationListenerService(), OverlayView.Events {
 
@@ -28,6 +32,14 @@ class MediaListener : NotificationListenerService(), OverlayView.Events {
     private lateinit var store: Store
     private lateinit var follower: Follower
     private var panel: OverlayView? = null
+    private val live = LiveLines()
+
+    /** True while a caption app sends lines. The follower then does not draw on the panel. */
+    private var liveOn = false
+
+    /** True when a live line came while a word was selected: the panel shows it after the selection. */
+    private var livePending = false
+    private val liveTimeout = Runnable { endLive() }
     private val params = WindowManager.LayoutParams(
         WindowManager.LayoutParams.MATCH_PARENT,
         WindowManager.LayoutParams.WRAP_CONTENT,
@@ -56,6 +68,7 @@ class MediaListener : NotificationListenerService(), OverlayView.Events {
         instance = null
         sessions.removeOnActiveSessionsChangedListener(onSessions)
         follower.stop()
+        handler.removeCallbacks(liveTimeout)
         removePanel()
     }
 
@@ -106,8 +119,62 @@ class MediaListener : NotificationListenerService(), OverlayView.Events {
         panel = null
     }
 
+    /**
+     * A line from a caption app, from any thread. Returns [PlayerProvider.LIVE_OK] when the panel
+     * shows it, else the reason: the panel needs the overlay permission, and the user must have
+     * it on the screen. A panel that the user closed does not come back for a line.
+     */
+    fun liveLine(text: String, partial: Boolean): String {
+        if (!Settings.canDrawOverlays(this)) return PlayerProvider.ERROR_NO_OVERLAY
+        if (!store.shown) return PlayerProvider.ERROR_PANEL_HIDDEN
+        handler.post {
+            if (!liveOn) {
+                liveOn = true
+                live.clear()
+            }
+            live.line(text, partial)
+            // A caption app that dies without `end` must not leave its last line for ever.
+            handler.removeCallbacks(liveTimeout)
+            handler.postDelayed(liveTimeout, LIVE_TIMEOUT_MS)
+            if (panel == null) showPanel() else showLive()
+        }
+        return PlayerProvider.LIVE_OK
+    }
+
+    /** The caption app stopped: the panel goes back to the subtitle file. From any thread. */
+    fun endLive(): String {
+        handler.post {
+            if (!liveOn) return@post
+            liveOn = false
+            livePending = false
+            live.clear()
+            handler.removeCallbacks(liveTimeout)
+            if (panel != null) reload()
+        }
+        return PlayerProvider.LIVE_OK
+    }
+
+    /**
+     * Shows the newest live line. While a word is selected, the line waits: a line that changes
+     * under the finger would take the selection away before the lookup.
+     */
+    private fun showLive() {
+        val view = panel ?: return
+        if (view.selection != null) {
+            livePending = true
+            return
+        }
+        livePending = false
+        val now = if (live.partial) live.now + " …" else live.now
+        if (store.linesAround) view.showLine(now, live.before, null) else view.showLine(now)
+    }
+
     private fun show(at: Int, hasPlayer: Boolean, playing: Boolean) {
         val view = panel ?: return
+        if (liveOn) {
+            showLive()
+            return
+        }
         view.showPlaying(playing)
         val cues = follower.index.cues
         val line = cues.getOrNull(at)?.text
@@ -133,6 +200,10 @@ class MediaListener : NotificationListenerService(), OverlayView.Events {
     }
 
     override fun onClose() = hidePanel()
+
+    override fun onSelectionCleared() {
+        if (liveOn && livePending) showLive()
+    }
 
     /** The player pauses for the lookup. The play button of the panel starts it again. */
     override fun onLookUp(word: String) {
@@ -167,6 +238,9 @@ class MediaListener : NotificationListenerService(), OverlayView.Events {
     }
 
     companion object {
+        /** Live lines end on their own this long after the last one. */
+        const val LIVE_TIMEOUT_MS = 10 * 60_000L
+
         /** The listener that the system runs now; null when the user did not allow it. */
         @Volatile
         var instance: MediaListener? = null
