@@ -29,8 +29,14 @@ import space.subread.overlay.core.PlayClock
  * `call` takes the method `play`, `pause` or `seek` (the argument is the position in
  * milliseconds), and returns the state line in the bundle key `state`.
  *
+ * A caption app, one that makes captions from live audio, sends its lines with the method `line`
+ * (the argument is the text, the extra `partial` is true while the sentence goes on) and `end`
+ * when it stops. The panel shows the newest line, in place of the subtitle file, until `end`.
+ * The bundle key `live` answers `ok`, or the reason the panel cannot show the line:
+ * `no_notification_access`, `no_overlay_permission` or `panel_hidden`.
+ *
  * The provider is open to each app. Each app can already send the media keys to the player, so
- * this gives no new control over the device.
+ * this gives no new control over the device. A line is shown, not kept or sent.
  */
 class PlayerProvider : ContentProvider() {
 
@@ -48,6 +54,15 @@ class PlayerProvider : ContentProvider() {
     ): Cursor = MatrixCursor(arrayOf(COLUMN_STATE)).apply { addRow(arrayOf(stateLine())) }
 
     override fun call(method: String, arg: String?, extras: Bundle?): Bundle {
+        if (method == METHOD_LINE || method == METHOD_END) {
+            val listener = MediaListener.instance
+            val answer = when {
+                listener == null -> ERROR_NO_ACCESS
+                method == METHOD_END -> listener.endLive()
+                else -> listener.liveLine(arg.orEmpty(), extras?.getBoolean(EXTRA_PARTIAL) == true)
+            }
+            return Bundle().apply { putString(KEY_LIVE, answer) }
+        }
         val player = runCatching { player() }.getOrNull()
         val controls = player?.transportControls
         when (method) {
@@ -89,8 +104,15 @@ class PlayerProvider : ContentProvider() {
         const val METHOD_PLAY = "play"
         const val METHOD_PAUSE = "pause"
         const val METHOD_SEEK = "seek"
+        const val METHOD_LINE = "line"
+        const val METHOD_END = "end"
+        const val EXTRA_PARTIAL = "partial"
+        const val KEY_LIVE = "live"
+        const val LIVE_OK = "ok"
         const val ERROR_NO_ACCESS = "no_notification_access"
         const val ERROR_NO_PLAYER = "no_player"
+        const val ERROR_NO_OVERLAY = "no_overlay_permission"
+        const val ERROR_PANEL_HIDDEN = "panel_hidden"
 
         /** The state line for a report of the player, at [nowMs] on the clock of the device. */
         fun stateLine(state: PlaybackState, packageName: String, nowMs: Long): String {

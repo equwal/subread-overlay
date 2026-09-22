@@ -83,6 +83,41 @@ controls the player. The panel does not need to be on the screen.
 The [SubRead plugin for KOReader](https://github.com/equwal/subread.koplugin)
 uses this to turn the pages with the audiobook.
 
+## For caption apps
+
+An app that makes captions from live audio, for example speech recognition of
+the sound of a video, can show its lines on the panel. The user then taps the
+words and looks them up, the same as with a subtitle file. The app calls the
+same content provider:
+
+```kotlin
+val panel = Uri.parse("content://space.subread.overlay.player")
+contentResolver.call(panel, "line", "It was a dark", bundleOf("partial" to true))
+contentResolver.call(panel, "line", "It was a dark night.", null)
+contentResolver.call(panel, "end", null, null)
+```
+
+`line` shows the text. The extra `partial` is true while the sentence goes on:
+the panel adds `…` to the line, and the next line replaces it. A final line
+(no `partial`) stays as the line before, when the user shows three lines. `end`
+gives the panel back to the subtitle file. Without `end`, live lines end ten
+minutes after the last one.
+
+The answer is in the bundle key `live`: `ok`, or the reason the panel cannot
+show the line. `no_notification_access` and `no_overlay_permission`: the user
+must allow steps 1 and 2. `panel_hidden`: the user must press "Show the
+subtitles", or closed the panel with `✕`. The panel does not come back on its
+own for a line, so that a close stays a close.
+
+While a word is selected, the panel holds the line, so that the lookup has
+time. The newest line comes when the selection goes.
+
+From a shell, for a test:
+
+```
+adb shell content call --uri content://space.subread.overlay.player --method line --arg "It was a dark" --extra partial:b:true
+```
+
 ## Build
 
 ```

@@ -43,6 +43,8 @@ class OverlayView(context: Context, private val events: Events) : LinearLayout(c
         fun onTogglePlay()
         fun onShiftLines(steps: Int)
         fun onNudge(ms: Long)
+        /** The selection went away: a tap beside a word, or a new line. */
+        fun onSelectionCleared() {}
     }
 
     /**
@@ -172,6 +174,7 @@ class OverlayView(context: Context, private val events: Events) : LinearLayout(c
         }
         text.text = marked
         lookUpRow.visibility = if (range == null) View.GONE else View.VISIBLE
+        if (range == null) events.onSelectionCleared()
     }
 
     /** The index of the character under the point; null when the point is not on a character. */
