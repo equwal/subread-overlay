@@ -37,6 +37,21 @@ class WordsTest {
     }
 
     @Test
+    fun aWordWithAccentsOrInvertedMarks() {
+        val pt = "— Não me parece bonito — disse ela, à porta."
+        assertEquals("Não", word(pt, pt.indexOf("Não")))
+        assertEquals("à", word(pt, pt.indexOf("à")))
+        assertNull("a dash", word(pt, 0))
+        val es = "¿Qué es esto? ¡Ñandú, señor!"
+        assertEquals("Qué", word(es, es.indexOf("Qué")))
+        assertEquals("Ñandú", word(es, es.indexOf("Ñandú")))
+        assertNull("the inverted mark", word(es, 0))
+        val ru = "«Ёлка, — сказал он, — и её огни»."
+        assertEquals("Ёлка", word(ru, ru.indexOf("Ёлка")))
+        assertEquals("её", word(ru, ru.indexOf("её")))
+    }
+
+    @Test
     fun aWordOfJapaneseThatHasNoSpaces() {
         val text = "女のいない男たちは、東京で暮らしている。"
         // The dictionary of ICU decides the cut. The test asks for what each good cut has:
