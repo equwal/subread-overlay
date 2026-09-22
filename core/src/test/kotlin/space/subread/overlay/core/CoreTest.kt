@@ -2,11 +2,13 @@ package space.subread.overlay.core
 
 import io.kotest.property.Arb
 import io.kotest.property.arbitrary.boolean
+import io.kotest.property.arbitrary.element
 import io.kotest.property.arbitrary.float
 import io.kotest.property.arbitrary.int
 import io.kotest.property.arbitrary.list
 import io.kotest.property.arbitrary.long
 import io.kotest.property.arbitrary.map
+import io.kotest.property.arbitrary.pair
 import io.kotest.property.arbitrary.stringPattern
 import io.kotest.property.checkAll
 import kotlinx.coroutines.runBlocking
@@ -41,6 +43,31 @@ class SrtTest {
         checkAll(cues) { list ->
             assertEquals(list, Srt.parse(write(list)))
             assertEquals(list, Srt.parse("\uFEFF" + write(list).replace("\n", "\r\n")))
+        }
+    }
+
+    /** Lines of the languages the overlay is checked against, with the marks their books use. */
+    private val lines = Arb.element(
+        "It was a dark night; the rain fell.",                    // en
+        "— Não me parece bonito — disse ela, à porta.",           // pt
+        "¿Qué es esto? ¡Ñandú, señor Quijote!",                   // es
+        "«Ёлка, — сказал он, — и её огни».",                      // ru
+        "吾輩は猫である。名前はまだ無い。",                          // ja
+        "「女のいない男たち」　東京で暮らしている",                    // ja, ideographic space and brackets
+    )
+
+    private val multilingualCues = Arb.list(Arb.pair(Arb.int(1..20_000).map { it.toLong() }, lines), 1..30).map { list ->
+        var at = 0L
+        list.map { (gap, text) ->
+            at += gap
+            Cue(at, at + 1 + gap, text)
+        }
+    }
+
+    @Test
+    fun aLineOfAnyScriptIsReadBackUnchanged(): Unit = runBlocking {
+        checkAll(multilingualCues) { list ->
+            assertEquals(list, Srt.parse(write(list)))
         }
     }
 
