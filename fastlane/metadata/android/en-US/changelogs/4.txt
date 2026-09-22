@@ -1,0 +1,1 @@
+"Look up" pauses the player; a button on the panel starts it again. A slider sets how much of the player shows through the panel. A setting shows the line before and the line after too.
