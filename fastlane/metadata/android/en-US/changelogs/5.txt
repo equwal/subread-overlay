@@ -1,0 +1,1 @@
+A tap on a word pauses the player at once. When the finger lifts, the word goes to the dictionary. The "Look up" button is gone. A caption app can send live lines to the panel.

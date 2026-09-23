@@ -24,8 +24,8 @@ android {
         minSdk = 26
         targetSdk = 36
         // Plain numbers, in this file: F-Droid reads them from here to find a new release.
-        versionCode = 4
-        versionName = "0.3.0"
+        versionCode = 5
+        versionName = "0.4.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
         // A link to the Ko-fi page. Google Play is not given it (-PplayStore=true), the same
