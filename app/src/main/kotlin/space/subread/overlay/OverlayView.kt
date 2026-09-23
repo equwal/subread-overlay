@@ -23,9 +23,10 @@ import androidx.core.view.isVisible
 /**
  * The panel over the media player: the subtitle line, and a few buttons.
  *
- * A tap on the line selects the word under the finger. A drag makes the selection longer, word
- * by word. The selection goes to a dictionary with "Look up". The system text selection is not
- * used: it needs a window with the input focus, and then the player below gets no keys.
+ * A tap on the line selects the word under the finger and pauses the player at once. A drag
+ * makes the selection longer, word by word. When the finger lifts, the selection goes to the
+ * dictionary. The system text selection is not used: it needs a window with the input focus,
+ * and then the player below gets no keys.
  *
  * Black on white and nothing that moves, so that the panel is usable on an e-ink screen.
  */
@@ -36,6 +37,9 @@ class OverlayView(context: Context, private val events: Events) : LinearLayout(c
         fun onDrag(dx: Float, dy: Float)
         fun onDragEnd()
         fun onClose()
+        /** A finger is on a word: the player pauses now, before the lookup. */
+        fun onTouchWord()
+        /** The finger lifted from a selection: the selection goes to the dictionary. */
         fun onLookUp(word: String)
         /** "Share": the selection goes to an app that the user picks in the share sheet. */
         fun onShare(word: String)
@@ -90,7 +94,6 @@ class OverlayView(context: Context, private val events: Events) : LinearLayout(c
         lookUpRow.gravity = Gravity.END
         lookUpRow.addView(button("Copy", null) { copy() }, wrap())
         lookUpRow.addView(button("Share", null) { share() }, wrap())
-        lookUpRow.addView(button("Look up", null) { lookUp() }, wrap())
         lookUpRow.visibility = View.GONE
         addView(lookUpRow, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT))
 
@@ -212,8 +215,12 @@ class OverlayView(context: Context, private val events: Events) : LinearLayout(c
     private fun selectWith(view: TextView) {
         view.setOnTouchListener { _, event ->
             when (event.actionMasked) {
-                MotionEvent.ACTION_DOWN -> selectAt(event.x, event.y)
+                MotionEvent.ACTION_DOWN -> {
+                    selectAt(event.x, event.y)
+                    if (selection != null) events.onTouchWord()
+                }
                 MotionEvent.ACTION_MOVE -> selectAt(event.x, event.y, extend = true)
+                MotionEvent.ACTION_UP -> lookUp()
             }
             true
         }

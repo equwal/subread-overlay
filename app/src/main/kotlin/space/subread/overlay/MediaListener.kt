@@ -206,6 +206,10 @@ class MediaListener : NotificationListenerService(), OverlayView.Events {
     }
 
     /** The player pauses for the lookup. The play button of the panel starts it again. */
+    override fun onTouchWord() {
+        follower.pause()
+    }
+
     override fun onLookUp(word: String) {
         follower.pause()
         runCatching { startActivity(Lookup.intent(word, store.dictionary)) }.onFailure {

@@ -31,9 +31,9 @@ whether it shows the line before and the line after the line of now.
 On the panel:
 
 - `≡` moves the panel.
-- A tap selects the word under the finger. A drag selects more words.
-  "Look up" pauses the player and sends the selection to the dictionary.
-  "Share" opens the share sheet of Android, for an app without an entry in
+- A tap on a word pauses the player at once and selects the word. A drag
+  selects more words. When the finger lifts, the selection goes to the
+  dictionary. "Share" opens the share sheet of Android, for an app without an entry in
   the text selection menu. "Copy" copies it.
 - `▶` starts the player again after a lookup. `⏸` pauses it.
 - `⋯` opens the timing row. `−0.5 s` and `+0.5 s` shift the subtitles.

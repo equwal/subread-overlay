@@ -81,11 +81,13 @@ class WordsTest {
 class OverlayViewTest {
 
     private val lookedUp = CopyOnWriteArrayList<String>()
+    private var touches = 0
     private val shared = CopyOnWriteArrayList<String>()
     private val events = object : OverlayView.Events {
         override fun onDrag(dx: Float, dy: Float) = Unit
         override fun onDragEnd() = Unit
         override fun onClose() = Unit
+        override fun onTouchWord() { touches++ }
         override fun onLookUp(word: String) { lookedUp += word }
         override fun onShare(word: String) { shared += word }
         override fun onTogglePlay() = Unit
@@ -103,8 +105,52 @@ class OverlayViewTest {
     private fun OverlayView.rowOf(offset: Int): Float =
         text.totalPaddingTop + text.layout.getLineBaseline(text.layout.getLineForOffset(offset)) - 5f
 
+    /** Gives a touch event at [x], [y] of the text view to the text view. */
+    private fun OverlayView.touch(action: Int, x: Float, y: Float) {
+        val now = SystemClock.uptimeMillis()
+        val event = android.view.MotionEvent.obtain(now, now, action, x, y, 0)
+        text.dispatchTouchEvent(event)
+        event.recycle()
+    }
+
     @Test
-    fun aTapSelectsTheWordUnderTheFingerAndLookUpSendsIt() {
+    fun aTouchPausesAtOnceAndTheLiftLooksUpTheSelection() {
+        ActivityScenario.launch(MainActivity::class.java).use { scenario ->
+            lateinit var panel: OverlayView
+            scenario.onActivity {
+                panel = OverlayView(it, events)
+                panel.setTextSize(30f)
+                it.addContentView(panel, ViewGroup.LayoutParams(-1, -2))
+                panel.showLine("reading along is easy")
+            }
+            InstrumentationRegistry.getInstrumentation().waitForIdleSync()
+            scenario.onActivity {
+                val start = panel.line.indexOf("along")
+                val last = panel.line.lastIndex
+                panel.touch(android.view.MotionEvent.ACTION_DOWN, panel.middleOf(start + 2), panel.rowOf(start + 2))
+                assertEquals("the finger on a word pauses the player", 1, touches)
+                assertEquals("no lookup before the finger lifts", emptyList<String>(), lookedUp)
+                panel.touch(android.view.MotionEvent.ACTION_MOVE, panel.middleOf(last), panel.rowOf(last))
+                panel.touch(android.view.MotionEvent.ACTION_UP, panel.middleOf(last), panel.rowOf(last))
+                assertEquals(listOf("along is easy"), lookedUp)
+
+                val found = arrayListOf<android.view.View>()
+                panel.findViewsWithText(found, "Look up", android.view.View.FIND_VIEWS_WITH_TEXT)
+                assertEquals("no \"Look up\" button", 0, found.size)
+
+                // A tap beside the words neither pauses nor looks up.
+                val right = panel.text.width - 1f
+                panel.touch(android.view.MotionEvent.ACTION_DOWN, right, panel.rowOf(last))
+                panel.touch(android.view.MotionEvent.ACTION_UP, right, panel.rowOf(last))
+                assertNull(panel.selection)
+                assertEquals(1, touches)
+                assertEquals(listOf("along is easy"), lookedUp)
+            }
+        }
+    }
+
+    @Test
+    fun aTapSelectsTheWordUnderTheFingerAndADragSelectsMore() {
         ActivityScenario.launch(MainActivity::class.java).use { scenario ->
             lateinit var panel: OverlayView
             scenario.onActivity {
@@ -126,10 +172,6 @@ class OverlayViewTest {
                 assertEquals(start..last, panel.selection)
 
                 val found = arrayListOf<android.view.View>()
-                panel.findViewsWithText(found, "Look up", android.view.View.FIND_VIEWS_WITH_TEXT)
-                found.single().performClick()
-                assertEquals(listOf("along is easy"), lookedUp)
-                found.clear()
                 panel.findViewsWithText(found, "Share", android.view.View.FIND_VIEWS_WITH_TEXT)
                 found.single().performClick()
                 assertEquals(listOf("along is easy"), shared)
