@@ -12,6 +12,15 @@ No `.srt` for your audiobook? [SubRead](https://subread.space) makes one from
 the audiobook and its ebook, in the browser or on
 [Android](https://github.com/equwal/subread-android).
 
+## Screenshots
+
+<p>
+  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/1.png" width="260" alt="The panel over Voice: the line of now, the move handle, pause, the timing row and close">
+  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/2.png" width="260" alt="A tap on a word: the player pauses and SubRead Dictionary opens over the player">
+</p>
+
+The pictures are from a Viwoods AiPaper Reader, with Voice as the player.
+
 ## How to use it
 
 1. Allow "Show over other apps".
