@@ -25,13 +25,16 @@ import androidx.core.view.isVisible
  *
  * A tap on the line selects the word under the finger and pauses the player at once. A drag
  * makes the selection longer, word by word. When the finger lifts, the selection goes to the
- * dictionary. The system text selection is not used: it needs a window with the input focus,
+ * dictionary. When the dictionary closes, the selection goes away. The system text selection is not used: it needs a window with the input focus,
  * and then the player below gets no keys.
+ *
+ * With SubRead Anki installed, the selection row has an "Anki" button: one tap makes a card
+ * from the word and the line.
  *
  * Black on white and nothing that moves, so that the panel is usable on an e-ink screen.
  */
 @SuppressLint("ViewConstructor", "SetTextI18n")
-class OverlayView(context: Context, private val events: Events) : LinearLayout(context) {
+class OverlayView(context: Context, private val events: Events, anki: Boolean = false) : LinearLayout(context) {
 
     interface Events {
         fun onDrag(dx: Float, dy: Float)
@@ -43,6 +46,8 @@ class OverlayView(context: Context, private val events: Events) : LinearLayout(c
         fun onLookUp(word: String)
         /** "Share": the selection goes to an app that the user picks in the share sheet. */
         fun onShare(word: String)
+        /** "Anki": the selection and the line go to SubRead Anki as a card. */
+        fun onAnki(word: String) {}
         /** The play button: pause the player when it plays, else start it. */
         fun onTogglePlay()
         fun onShiftLines(steps: Int)
@@ -92,6 +97,7 @@ class OverlayView(context: Context, private val events: Events) : LinearLayout(c
         addView(top, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT))
 
         lookUpRow.gravity = Gravity.END
+        if (anki) lookUpRow.addView(button("Anki", "Make an Anki card") { anki() }, wrap())
         lookUpRow.addView(button("Copy", null) { copy() }, wrap())
         lookUpRow.addView(button("Share", null) { share() }, wrap())
         lookUpRow.visibility = View.GONE
@@ -204,6 +210,10 @@ class OverlayView(context: Context, private val events: Events) : LinearLayout(c
 
     private fun share() {
         events.onShare(selected() ?: return)
+    }
+
+    private fun anki() {
+        events.onAnki(selected() ?: return)
     }
 
     private fun copy() {

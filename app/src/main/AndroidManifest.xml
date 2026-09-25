@@ -5,9 +5,10 @@
     <!-- The subtitle line is drawn over the media player. No network permission: nothing leaves the device. -->
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
 
-    <!-- The apps that can take a word: dictionaries, translators, flash card apps. And the SubRead app, to open it when it is installed. -->
+    <!-- The apps that can take a word: dictionaries, translators, flash card apps. And the SubRead apps, to open them when they are installed. -->
     <queries>
         <package android:name="space.subread.app" />
+        <package android:name="space.subread.anki" />
         <intent>
             <action android:name="android.intent.action.PROCESS_TEXT" />
             <data android:mimeType="text/plain" />

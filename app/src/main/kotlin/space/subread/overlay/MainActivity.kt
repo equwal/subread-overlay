@@ -102,6 +102,13 @@ class MainActivity : Activity() {
         } else {
             content.addView(button(getString(R.string.install_subread)) { open(SUBREAD_INSTALL) }, wide())
         }
+        note(getString(R.string.anki_note), top = 24)
+        val anki = packageManager.getLaunchIntentForPackage(Anki.PACKAGE)
+        if (anki != null) {
+            content.addView(button(getString(R.string.open_anki)) { runCatching { startActivity(anki) } }, wide())
+        } else {
+            content.addView(button(getString(R.string.install_anki)) { open(Anki.INSTALL) }, wide())
+        }
         if (BuildConfig.DONATE_LINK) content.addView(button(getString(R.string.donate)) { open(KOFI) }, wide())
     }
 

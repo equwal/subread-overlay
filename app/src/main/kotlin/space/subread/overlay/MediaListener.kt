@@ -9,6 +9,7 @@ import android.os.Looper
 import android.provider.Settings
 import android.service.notification.NotificationListenerService
 import android.view.Gravity
+import android.view.View
 import android.view.WindowManager
 import android.widget.Toast
 import space.subread.overlay.core.CueIndex
@@ -39,6 +40,9 @@ class MediaListener : NotificationListenerService(), OverlayView.Events {
 
     /** True when a live line came while a word was selected: the panel shows it after the selection. */
     private var livePending = false
+
+    /** The line that the panel shows now, without the lines around it. For the Anki card. */
+    private var currentLine = ""
     private val liveTimeout = Runnable { endLive() }
     private val params = WindowManager.LayoutParams(
         WindowManager.LayoutParams.MATCH_PARENT,
@@ -79,7 +83,7 @@ class MediaListener : NotificationListenerService(), OverlayView.Events {
         if (panel == null) {
             params.x = store.x
             params.y = store.y
-            panel = OverlayView(this, this).also { getSystemService(WindowManager::class.java).addView(it, params) }
+            panel = OverlayView(this, this, Anki.installed(this)).also { getSystemService(WindowManager::class.java).addView(it, params) }
         }
         reload()
         return true
@@ -166,6 +170,7 @@ class MediaListener : NotificationListenerService(), OverlayView.Events {
         }
         livePending = false
         val now = if (live.partial) live.now + " …" else live.now
+        currentLine = live.now
         if (store.linesAround) view.showLine(now, live.before, null) else view.showLine(now)
     }
 
@@ -178,6 +183,7 @@ class MediaListener : NotificationListenerService(), OverlayView.Events {
         view.showPlaying(playing)
         val cues = follower.index.cues
         val line = cues.getOrNull(at)?.text
+        currentLine = line ?: ""
         when {
             store.subtitles == null -> view.showStatus(getString(R.string.status_no_file))
             cues.isEmpty() -> view.showStatus(getString(R.string.status_empty_file))
@@ -222,6 +228,24 @@ class MediaListener : NotificationListenerService(), OverlayView.Events {
         runCatching { startActivity(Lookup.share(word)) }
     }
 
+    /**
+     * The word and the line go to SubRead Anki. The panel hides for a moment, so that the
+     * screenshot of SubRead Anki shows the player and not the panel.
+     */
+    override fun onAnki(word: String) {
+        follower.pause()
+        val view = panel ?: return
+        val source = follower.title ?: follower.player?.let { pkg ->
+            runCatching { packageManager.getApplicationLabel(packageManager.getApplicationInfo(pkg, 0)).toString() }.getOrNull()
+        } ?: ""
+        val intent = Anki.intent(word, currentLine, source)
+        view.visibility = View.INVISIBLE
+        handler.postDelayed({
+            runCatching { startActivity(intent) }.onFailure { Toast.makeText(this, R.string.no_anki, Toast.LENGTH_SHORT).show() }
+        }, ANKI_HIDE_MS)
+        handler.postDelayed({ panel?.visibility = View.VISIBLE }, ANKI_SHOW_MS)
+    }
+
     override fun onTogglePlay() {
         if (!follower.pause()) follower.play()
     }
@@ -244,6 +268,10 @@ class MediaListener : NotificationListenerService(), OverlayView.Events {
     companion object {
         /** Live lines end on their own this long after the last one. */
         const val LIVE_TIMEOUT_MS = 10 * 60_000L
+
+        /** The panel hides this long before the card goes, and comes back this long after. */
+        const val ANKI_HIDE_MS = 150L
+        const val ANKI_SHOW_MS = 1800L
 
         /** The listener that the system runs now; null when the user did not allow it. */
         @Volatile

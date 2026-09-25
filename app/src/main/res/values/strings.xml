@@ -40,9 +40,13 @@
     <string name="status_no_player">No media player. Start the audiobook or the video.</string>
     <string name="status_before_first_line">Before the first line.</string>
     <string name="no_dictionary">No app took the word.</string>
+    <string name="no_anki">SubRead Anki did not take the card.</string>
 
     <string name="make_subtitles">No .srt for your audiobook? The SubRead app makes it from the audiobook and its ebook, on this device.</string>
     <string name="open_subread">Open SubRead</string>
     <string name="install_subread">Install SubRead</string>
+    <string name="anki_note">One tap on "Anki" under a selected word makes a card in AnkiDroid: the word, its reading and definition, the line, a screenshot of the player and the audio. SubRead Anki does this, with SubRead Dictionary for the definition.</string>
+    <string name="open_anki">Open SubRead Anki</string>
+    <string name="install_anki">Install SubRead Anki</string>
     <string name="donate">Support the work on Ko-fi</string>
 </resources>

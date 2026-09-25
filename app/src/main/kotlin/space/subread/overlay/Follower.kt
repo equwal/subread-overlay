@@ -1,5 +1,6 @@
 package space.subread.overlay
 
+import android.media.MediaMetadata
 import android.media.session.MediaController
 import android.media.session.PlaybackState
 import android.os.Handler
@@ -69,6 +70,14 @@ class Follower(
     /** True while the player that is followed plays. */
     val playing: Boolean
         get() = controller?.playbackState?.state == PlaybackState.STATE_PLAYING
+
+    /** The title that the player gives its media, or null. */
+    val title: String?
+        get() = controller?.metadata?.getString(MediaMetadata.METADATA_KEY_TITLE)?.takeIf { it.isNotBlank() }
+
+    /** The package of the player, or null. */
+    val player: String?
+        get() = controller?.packageName
 
     /** Pauses the player. True when it played. */
     fun pause(): Boolean {

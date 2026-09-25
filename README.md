@@ -68,6 +68,16 @@ starts to play, and the panel holds its line in a pause. Set the timing with
 The app does not use an accessibility service, and will not. Players that
 hide their position (Netflix, some DRM players) are not supported.
 
+## Anki cards
+
+With [SubRead Anki](https://github.com/equwal/subread-anki) installed, the
+selection row has an "Anki" button. One tap makes a card in AnkiDroid: the
+word, its reading and definition (from SubRead Dictionary), the line as the
+sentence, a screenshot of the player, the word audio and the line read by the
+voice of the device. The panel hides for a moment so that the screenshot shows
+the player. SubRead Anki has its own optional capture service; this app stays
+without one.
+
 A book in many audio files: the player reports the position in the current
 file, and the subtitle file has one clock for the whole book. Shift the
 subtitles with the timing row at the start of each file. One `.m4b` for one
