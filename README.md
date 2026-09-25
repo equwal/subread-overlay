@@ -102,6 +102,31 @@ controls the player. The panel does not need to be on the screen.
 The [SubRead plugin for KOReader](https://github.com/equwal/subread.koplugin)
 uses this to turn the pages with the audiobook.
 
+## For flash card apps
+
+A query of `content://space.subread.overlay.player/line` returns one row: the
+subtitle line of now, with the report of the player as it came, so that a
+flash card app can put the line on a card and cut its sound. The columns:
+
+- `state`: the same line as `/state`.
+- `reported_position`, `reported_at`, `speed`, `playing`: the last report of
+  the player. `reported_at` is on the clock of `SystemClock.elapsedRealtime()`.
+  A pause reported a minute ago still maps each time of the media to the
+  moment it played.
+- `offset`: the shift the user set. A time of the subtitle file is `offset`
+  milliseconds later than the same moment of the player.
+- `index`, `start`, `end`, `text`, `before`, `after`: the line. `index` is -1
+  before the first line, and `text` is then null. The times are on the clock
+  of the subtitle file.
+
+The query parameter `position` (milliseconds, on the clock of the player)
+picks the line for that position in place of the position of now. The panel
+does not need to be on the screen, but the user must have chosen the `.srt`.
+
+[SubRead Anki](https://github.com/equwal/subread-anki) uses this. Choose it
+as the dictionary in step 4: a tap on a word then makes a card with the line,
+its sound and a picture of the screen.
+
 ## For caption apps
 
 An app that makes captions from live audio, for example speech recognition of

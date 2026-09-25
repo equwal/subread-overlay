@@ -2,6 +2,7 @@ package space.subread.overlay
 
 import android.media.session.MediaSession
 import android.media.session.PlaybackState
+import android.net.Uri
 import android.os.SystemClock
 import androidx.core.net.toUri
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -11,6 +12,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Assume.assumeTrue
 import org.junit.Test
 import org.junit.runner.RunWith
+import java.io.File
 
 /**
  * The provider that a reader app asks for the position. The test app plays the part of the
@@ -22,6 +24,7 @@ class PlayerProviderTest {
 
     private val context = InstrumentationRegistry.getInstrumentation().targetContext
     private val uri = "content://${PlayerProvider.AUTHORITY}/state".toUri()
+    private val lineUri = "content://${PlayerProvider.AUTHORITY}/${PlayerProvider.PATH_LINE}".toUri()
 
     private fun state(state: Int, position: Long, speed: Float = 1f) = PlaybackState.Builder()
         .setState(state, position, speed, SystemClock.elapsedRealtime())
@@ -89,6 +92,44 @@ class PlayerProviderTest {
             assertTrue(answer.getString(PlayerProvider.COLUMN_STATE)!!.startsWith("playing="))
         } finally {
             session.release()
+        }
+    }
+
+    /** A flash card app asks for the line of a position. No player and no notification access are needed for that. */
+    @Test
+    fun aFlashCardAppReadsTheLineOfAPosition() {
+        val store = Store(context)
+        val before = store.subtitles
+        val beforeOffset = store.offsetMs
+        val file = File(context.cacheDir, "line-test.srt").apply {
+            writeText("1\n00:01:30,000 --> 00:01:33,000\nFirst line.\n\n2\n00:01:36,000 --> 00:01:39,500\nSecond line.\n\n")
+        }
+        try {
+            store.subtitles = Uri.fromFile(file)
+            store.offsetMs = 1_000
+            // The player is at 95 s; the file is shifted 1 s later: the line at 96 s of the file.
+            val at95 = lineUri.buildUpon().appendQueryParameter(PlayerProvider.PARAM_POSITION, "95000").build()
+            context.contentResolver.query(at95, null, null, null, null)!!.use {
+                assertTrue(it.moveToFirst())
+                assertEquals("Second line.", it.getString(it.getColumnIndexOrThrow(PlayerProvider.COLUMN_TEXT)))
+                assertEquals(96_000L, it.getLong(it.getColumnIndexOrThrow(PlayerProvider.COLUMN_START)))
+                assertEquals(99_500L, it.getLong(it.getColumnIndexOrThrow(PlayerProvider.COLUMN_END)))
+                assertEquals(1L, it.getLong(it.getColumnIndexOrThrow(PlayerProvider.COLUMN_INDEX)))
+                assertEquals(1_000L, it.getLong(it.getColumnIndexOrThrow(PlayerProvider.COLUMN_OFFSET)))
+                assertEquals("First line.", it.getString(it.getColumnIndexOrThrow(PlayerProvider.COLUMN_BEFORE)))
+                assertTrue(it.isNull(it.getColumnIndexOrThrow(PlayerProvider.COLUMN_AFTER)))
+            }
+            // Before the first line: no text.
+            val at10 = lineUri.buildUpon().appendQueryParameter(PlayerProvider.PARAM_POSITION, "10000").build()
+            context.contentResolver.query(at10, null, null, null, null)!!.use {
+                assertTrue(it.moveToFirst())
+                assertEquals(-1L, it.getLong(it.getColumnIndexOrThrow(PlayerProvider.COLUMN_INDEX)))
+                assertTrue(it.isNull(it.getColumnIndexOrThrow(PlayerProvider.COLUMN_TEXT)))
+            }
+        } finally {
+            store.subtitles = before
+            store.offsetMs = beforeOffset
+            file.delete()
         }
     }
 }
