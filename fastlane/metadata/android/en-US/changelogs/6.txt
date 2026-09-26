@@ -1,0 +1,1 @@
+An "Anki" button under a selected word sends the word and its line to SubRead Anki. Flash card apps can ask for the subtitle line of now. The app is smaller: R8 removes code that it does not use.
