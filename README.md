@@ -37,19 +37,27 @@ The pictures are from a Viwoods AiPaper Reader, with Voice as the player.
 Two settings change the panel: how much of the player shows through it, and
 whether it shows the line before and the line after the line of now.
 
-On the panel:
+The panel has a slim strip of small black buttons, and the lines under it at
+the full width of the panel.
 
-- `≡` moves the panel.
-- A tap on a word pauses the player at once and selects the word. A drag
-  selects more words. When the finger lifts, the selection goes to the
-  dictionary. "Share" opens the share sheet of Android, for an app without an entry in
-  the text selection menu. "Copy" copies it.
-- `▶` starts the player again after a lookup. `⏸` pauses it.
-- `⋯` opens the timing row. `−0.5 s` and `+0.5 s` shift the subtitles.
-  `◀ line` and `line ▶` make the line before, or the next line, the line of
-  now. Use them when the media has an intro that the subtitle file does not
-  have.
-- `✕` closes the panel.
+- The three bars at the left move the panel.
+- A tap on a word pauses the player at once and selects the word. A sideways
+  drag selects more words. When the finger lifts, the selection goes to the
+  dictionary. When the dictionary closes, the selection goes away and the
+  player plays again, if the tap paused it. With a selection, the strip has
+  "Share", which opens the share sheet of Android for an app without an entry
+  in the text selection menu, and "Copy", which copies it.
+- Drag the lines down to scroll back to the lines before, for example to find
+  something that was said. The panel then grows to show more lines, and it does
+  not follow the player. The arrow to the bar, or a scroll back to the newest
+  line, makes the panel follow the line of now again.
+- Play starts the player, and pause stops it. After a press on one of them,
+  the player does not start when the dictionary closes.
+- The three dots open the timing row. `−0.5 s` and `+0.5 s` shift the
+  subtitles. `◀ line` and `line ▶` make the line before, or the next line, the
+  line of now. Use them when the media has an intro that the subtitle file does
+  not have.
+- The cross closes the panel.
 
 The line stays on the panel until the next line starts, also in a silence, so
 that there is time to look a word up.
@@ -71,12 +79,14 @@ hide their position (Netflix, some DRM players) are not supported.
 ## Anki cards
 
 With [SubRead Anki](https://github.com/equwal/subread-anki) installed, the
-selection row has an "Anki" button. One tap makes a card in AnkiDroid: the
-word, its reading and definition (from SubRead Dictionary), the line as the
-sentence, a screenshot of the player, the word audio and the line read by the
-voice of the device. The panel hides for a moment so that the screenshot shows
-the player. SubRead Anki has its own optional capture service; this app stays
-without one.
+strip has an "Anki" button while a word is selected. One tap makes a card in
+AnkiDroid: the word, its reading and definition (from SubRead Dictionary), the
+line of the word as the sentence, a screenshot of the player, the word audio
+and the sound of the line. The line can be an older line that you scrolled
+back to. The panel hides for a moment so that the screenshot shows the player.
+When the pop-up of SubRead Anki closes, the selection goes away and the player
+plays again, the same as after a lookup. SubRead Anki has its own optional
+capture service; this app stays without one.
 
 A book in many audio files: the player reports the position in the current
 file, and the subtitle file has one clock for the whole book. Shift the
@@ -143,9 +153,9 @@ contentResolver.call(panel, "end", null, null)
 
 `line` shows the text. The extra `partial` is true while the sentence goes on:
 the panel adds `…` to the line, and the next line replaces it. A final line
-(no `partial`) stays as the line before, when the user shows three lines. `end`
-gives the panel back to the subtitle file. Without `end`, live lines end ten
-minutes after the last one.
+(no `partial`) stays on the panel as a line before, and the user can scroll
+back to it. `end` gives the panel back to the subtitle file. Without `end`,
+live lines end ten minutes after the last one.
 
 The answer is in the bundle key `live`: `ok`, or the reason the panel cannot
 show the line. `no_notification_access` and `no_overlay_permission`: the user

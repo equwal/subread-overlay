@@ -3,7 +3,7 @@
     <string name="app_name">SubRead Overlay</string>
     <string name="listener_label">SubRead Overlay: position of the media player</string>
 
-    <string name="about">Shows the lines of a subtitle file (.srt) over the app that plays the audiobook or the video: Voice, VLC, mpv, YouTube, a podcast app. The line follows the position of the player. Tap a word to select it, drag to select more, then send it to a dictionary.</string>
+    <string name="about">Shows the lines of a subtitle file (.srt) over the app that plays the audiobook or the video: Voice, VLC, mpv, YouTube, a podcast app. The line follows the position of the player. Tap a word to select it, drag to select more, then send it to a dictionary. Scroll the lines back to find what was said.</string>
     <string name="privacy">This app has no network permission. Nothing leaves the device.</string>
 
     <string name="step_overlay">1. Show over other apps</string>
@@ -45,7 +45,7 @@
     <string name="make_subtitles">No .srt for your audiobook? The SubRead app makes it from the audiobook and its ebook, on this device.</string>
     <string name="open_subread">Open SubRead</string>
     <string name="install_subread">Install SubRead</string>
-    <string name="anki_note">One tap on "Anki" under a selected word makes a card in AnkiDroid: the word, its reading and definition, the line, a screenshot of the player and the audio. SubRead Anki does this, with SubRead Dictionary for the definition.</string>
+    <string name="anki_note">One tap on "Anki" above the lines, while a word is selected, makes a card in AnkiDroid: the word, its reading and definition, the line, a screenshot of the player and the audio. SubRead Anki does this, with SubRead Dictionary for the definition.</string>
     <string name="open_anki">Open SubRead Anki</string>
     <string name="install_anki">Install SubRead Anki</string>
     <string name="donate">Support the work on Ko-fi</string>

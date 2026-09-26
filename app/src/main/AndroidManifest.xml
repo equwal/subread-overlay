@@ -32,6 +32,17 @@
         </activity>
 
         <!--
+            Opens the dictionary for a word and waits until it closes. It shows nothing. Its own
+            task affinity keeps MainActivity from coming up over the player.
+        -->
+        <activity
+            android:name=".LookupActivity"
+            android:excludeFromRecents="true"
+            android:exported="false"
+            android:taskAffinity="space.subread.overlay.lookup"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
+
+        <!--
             Android gives the play position of other apps only to a notification listener.
             This service reads no notification. The system keeps it running, so the overlay
             needs no foreground service and no notification of its own.

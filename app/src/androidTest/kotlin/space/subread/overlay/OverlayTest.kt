@@ -1,5 +1,6 @@
 package space.subread.overlay
 
+import android.content.Intent
 import android.media.session.MediaController
 import android.media.session.MediaSession
 import android.media.session.PlaybackState
@@ -11,6 +12,7 @@ import androidx.test.core.app.ActivityScenario
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -18,6 +20,8 @@ import org.junit.runner.RunWith
 import space.subread.overlay.core.Cue
 import space.subread.overlay.core.CueIndex
 import java.util.concurrent.CopyOnWriteArrayList
+import java.util.concurrent.LinkedBlockingQueue
+import java.util.concurrent.TimeUnit
 
 /** The word cutter of the device. It is ICU of Android, so the test runs on the device. */
 @RunWith(AndroidJUnit4::class)
@@ -82,6 +86,7 @@ class OverlayViewTest {
 
     private val lookedUp = CopyOnWriteArrayList<String>()
     private var touches = 0
+    private var scrolls = 0
     private val shared = CopyOnWriteArrayList<String>()
     private val events = object : OverlayView.Events {
         override fun onDrag(dx: Float, dy: Float) = Unit
@@ -93,45 +98,56 @@ class OverlayViewTest {
         override fun onTogglePlay() = Unit
         override fun onShiftLines(steps: Int) = Unit
         override fun onNudge(ms: Long) = Unit
+        override fun onTouchScrolled() { scrolls++ }
     }
 
-    /** The x of the middle of the character at [offset], in the panel. */
-    private fun OverlayView.middleOf(offset: Int): Float {
-        val layout = text.layout
-        return text.totalPaddingLeft + (layout.getPrimaryHorizontal(offset) + layout.getPrimaryHorizontal(offset + 1)) / 2
+    /** The x of the middle of the character at [offset] of [row], in the view of the row. */
+    private fun OverlayView.middleOf(row: Int, offset: Int): Float {
+        val view = rowView(row)!!
+        val layout = view.layout
+        return view.totalPaddingLeft + (layout.getPrimaryHorizontal(offset) + layout.getPrimaryHorizontal(offset + 1)) / 2
     }
 
-    /** A y just over the baseline of the row of the character at [offset], in the panel. */
-    private fun OverlayView.rowOf(offset: Int): Float =
-        text.totalPaddingTop + text.layout.getLineBaseline(text.layout.getLineForOffset(offset)) - 5f
+    /** A y just over the baseline of the character at [offset] of [row], in the view of the row. */
+    private fun OverlayView.rowOf(row: Int, offset: Int): Float {
+        val view = rowView(row)!!
+        return view.totalPaddingTop + view.layout.getLineBaseline(view.layout.getLineForOffset(offset)) - 5f
+    }
 
-    /** Gives a touch event at [x], [y] of the text view to the text view. */
-    private fun OverlayView.touch(action: Int, x: Float, y: Float) {
+    /** Gives a touch event at [x], [y] of the view of [row] to that view. */
+    private fun OverlayView.touch(row: Int, action: Int, x: Float, y: Float) {
         val now = SystemClock.uptimeMillis()
         val event = android.view.MotionEvent.obtain(now, now, action, x, y, 0)
-        text.dispatchTouchEvent(event)
+        rowView(row)!!.dispatchTouchEvent(event)
         event.recycle()
+    }
+
+    /** A panel with [lines] up to the line of now [now], in the window of an activity. */
+    private fun panel(scenario: ActivityScenario<MainActivity>, lines: List<String>, now: Int, around: Boolean = false): OverlayView {
+        lateinit var panel: OverlayView
+        scenario.onActivity {
+            panel = OverlayView(it, events)
+            panel.setTextSize(30f)
+            it.addContentView(panel, ViewGroup.LayoutParams(-1, -2))
+            panel.showLines(lines, now, around)
+        }
+        InstrumentationRegistry.getInstrumentation().waitForIdleSync()
+        return panel
     }
 
     @Test
     fun aTouchPausesAtOnceAndTheLiftLooksUpTheSelection() {
         ActivityScenario.launch(MainActivity::class.java).use { scenario ->
-            lateinit var panel: OverlayView
+            val panel = panel(scenario, listOf("reading along is easy"), 0)
             scenario.onActivity {
-                panel = OverlayView(it, events)
-                panel.setTextSize(30f)
-                it.addContentView(panel, ViewGroup.LayoutParams(-1, -2))
-                panel.showLine("reading along is easy")
-            }
-            InstrumentationRegistry.getInstrumentation().waitForIdleSync()
-            scenario.onActivity {
-                val start = panel.line.indexOf("along")
-                val last = panel.line.lastIndex
-                panel.touch(android.view.MotionEvent.ACTION_DOWN, panel.middleOf(start + 2), panel.rowOf(start + 2))
+                val line = "reading along is easy"
+                val start = line.indexOf("along")
+                val last = line.lastIndex
+                panel.touch(0, android.view.MotionEvent.ACTION_DOWN, panel.middleOf(0, start + 2), panel.rowOf(0, start + 2))
                 assertEquals("the finger on a word pauses the player", 1, touches)
                 assertEquals("no lookup before the finger lifts", emptyList<String>(), lookedUp)
-                panel.touch(android.view.MotionEvent.ACTION_MOVE, panel.middleOf(last), panel.rowOf(last))
-                panel.touch(android.view.MotionEvent.ACTION_UP, panel.middleOf(last), panel.rowOf(last))
+                panel.touch(0, android.view.MotionEvent.ACTION_MOVE, panel.middleOf(0, last), panel.rowOf(0, last))
+                panel.touch(0, android.view.MotionEvent.ACTION_UP, panel.middleOf(0, last), panel.rowOf(0, last))
                 assertEquals(listOf("along is easy"), lookedUp)
 
                 val found = arrayListOf<android.view.View>()
@@ -139,9 +155,9 @@ class OverlayViewTest {
                 assertEquals("no \"Look up\" button", 0, found.size)
 
                 // A tap beside the words neither pauses nor looks up.
-                val right = panel.text.width - 1f
-                panel.touch(android.view.MotionEvent.ACTION_DOWN, right, panel.rowOf(last))
-                panel.touch(android.view.MotionEvent.ACTION_UP, right, panel.rowOf(last))
+                val right = panel.rowView(0)!!.width - 1f
+                panel.touch(0, android.view.MotionEvent.ACTION_DOWN, right, panel.rowOf(0, last))
+                panel.touch(0, android.view.MotionEvent.ACTION_UP, right, panel.rowOf(0, last))
                 assertNull(panel.selection)
                 assertEquals(1, touches)
                 assertEquals(listOf("along is easy"), lookedUp)
@@ -150,35 +166,53 @@ class OverlayViewTest {
     }
 
     @Test
+    fun aTouchThatBecomesAScrollSelectsNothingAndLooksNothingUp() {
+        ActivityScenario.launch(MainActivity::class.java).use { scenario ->
+            val panel = panel(scenario, listOf("reading along is easy"), 0)
+            scenario.onActivity {
+                val start = "reading along is easy".indexOf("along")
+                panel.touch(0, android.view.MotionEvent.ACTION_DOWN, panel.middleOf(0, start), panel.rowOf(0, start))
+                assertEquals(1, touches)
+                // The list takes the finger for a scroll: the row gets a cancel.
+                panel.touch(0, android.view.MotionEvent.ACTION_CANCEL, panel.middleOf(0, start), panel.rowOf(0, start))
+                assertNull(panel.selection)
+                assertEquals("the player can play again", 1, scrolls)
+                assertEquals(emptyList<String>(), lookedUp)
+            }
+        }
+    }
+
+    @Test
     fun aTapSelectsTheWordUnderTheFingerAndADragSelectsMore() {
         ActivityScenario.launch(MainActivity::class.java).use { scenario ->
-            lateinit var panel: OverlayView
+            val lines = listOf("reading along is easy", "the next line")
+            val panel = panel(scenario, lines, 0)
             scenario.onActivity {
-                panel = OverlayView(it, events)
-                panel.setTextSize(30f)
-                it.addContentView(panel, ViewGroup.LayoutParams(-1, -2))
-                panel.showLine("reading along is easy")
-            }
-            InstrumentationRegistry.getInstrumentation().waitForIdleSync()
-            scenario.onActivity {
-                val start = panel.line.indexOf("along")
+                val start = lines[0].indexOf("along")
                 // The middle of the third letter of "along".
-                panel.selectAt(panel.middleOf(start + 2), panel.rowOf(start + 2))
-                assertEquals(start..start + 4, panel.selection)
+                panel.selectAt(0, panel.middleOf(0, start + 2), panel.rowOf(0, start + 2))
+                assertEquals(start..start + 4, panel.selection?.range)
 
                 // A drag to the last word selects the three words.
-                val last = panel.line.lastIndex
-                panel.selectAt(panel.middleOf(last), panel.rowOf(last), extend = true)
-                assertEquals(start..last, panel.selection)
+                val last = lines[0].lastIndex
+                panel.selectAt(0, panel.middleOf(0, last), panel.rowOf(0, last), extend = true)
+                assertEquals(start..last, panel.selection?.range)
+                assertEquals(lines[0], panel.selection?.text)
 
                 val found = arrayListOf<android.view.View>()
                 panel.findViewsWithText(found, "Share", android.view.View.FIND_VIEWS_WITH_TEXT)
                 found.single().performClick()
                 assertEquals(listOf("along is easy"), shared)
 
-                // The next line has no selection from the line before.
-                panel.showLine("the next line")
+                // The dictionary closed.
+                panel.clearSelection()
                 assertNull(panel.selection)
+
+                // The next line comes: the selection in the line before stays.
+                panel.selectAt(0, panel.middleOf(0, start + 2), panel.rowOf(0, start + 2))
+                panel.showLines(lines, 1, around = false)
+                assertEquals(0, panel.selection?.row)
+                assertEquals("along", panel.selection?.words)
             }
         }
     }
@@ -186,31 +220,82 @@ class OverlayViewTest {
     @Test
     fun theLinesAroundAreOnTheirOwnRowsAndAWordOfThemCanBeSelected() {
         ActivityScenario.launch(MainActivity::class.java).use { scenario ->
-            lateinit var panel: OverlayView
+            val lines = listOf("the line before", "the line of now", "the line after")
+            val panel = panel(scenario, lines, 1, around = true)
             scenario.onActivity {
-                panel = OverlayView(it, events)
-                panel.setTextSize(30f)
-                it.addContentView(panel, ViewGroup.LayoutParams(-1, -2))
-                panel.showLine("the line of now", "the line before", "the line after")
+                assertEquals("the three lines are rows on the screen", 3, panel.list.childCount)
+                val start = lines[2].indexOf("after")
+                panel.selectAt(2, panel.middleOf(2, start + 1), panel.rowOf(2, start + 1))
+                assertEquals(2, panel.selection?.row)
+                assertEquals("after", panel.selection?.words)
+
+                // The same lines again change nothing; other lines take the selection away.
+                panel.showLines(lines, 1, around = true)
+                assertEquals("after", panel.selection?.words)
+                panel.showLines(listOf("the line of now"), 0, around = false)
+                assertNull(panel.selection)
+            }
+        }
+    }
+
+    @Test
+    fun theLinesUseTheFullWidthAndThePlayButtonIsAnIcon() {
+        ActivityScenario.launch(MainActivity::class.java).use { scenario ->
+            val panel = panel(scenario, listOf("reading along is easy"), 0)
+            scenario.onActivity {
+                assertEquals("no button beside the lines", panel.width - panel.paddingLeft - panel.paddingRight, panel.list.width)
+                assertEquals(panel.list.width, panel.rowView(0)!!.width)
+                panel.showPlaying(true)
+                val found = arrayListOf<android.view.View>()
+                panel.findViewsWithText(found, "Pause the player", android.view.View.FIND_VIEWS_WITH_CONTENT_DESCRIPTION)
+                assertTrue("the pause button is a black icon, not an emoji", found.single() is android.widget.ImageButton)
+                found.clear()
+                panel.findViewsWithText(found, "⏸", android.view.View.FIND_VIEWS_WITH_TEXT)
+                assertEquals(0, found.size)
+            }
+        }
+    }
+
+    @Test
+    fun aScrollBackStopsTheFollowAndNowFollowsAgain() {
+        ActivityScenario.launch(MainActivity::class.java).use { scenario ->
+            val lines = List(41) { "line number $it of the film" }
+            val panel = panel(scenario, lines, 39)
+            scenario.onActivity {
+                assertTrue(panel.following)
+                assertEquals("the line of now is the last row", 39, panel.list.lastVisiblePosition)
+            }
+            // A slow drag down on the lines, as a finger does it.
+            val list = panel.list
+            val x = list.width / 2f
+            val start = SystemClock.uptimeMillis()
+            fun send(action: Int, y: Float, time: Long) {
+                val event = android.view.MotionEvent.obtain(start, start + time, action, x, y, 0)
+                scenario.onActivity { list.dispatchTouchEvent(event) }
+                event.recycle()
+            }
+            send(android.view.MotionEvent.ACTION_DOWN, 5f, 0)
+            for (step in 1..20) send(android.view.MotionEvent.ACTION_MOVE, 5f + step * 20f, step * 50L)
+            send(android.view.MotionEvent.ACTION_UP, 405f, 2_000)
+            InstrumentationRegistry.getInstrumentation().waitForIdleSync()
+            var first = -1
+            scenario.onActivity {
+                assertFalse("the list reads back", panel.following)
+                assertTrue("an older line is on the screen", panel.list.firstVisiblePosition < 39)
+                // The next line does not move the list while the user reads back.
+                first = panel.list.firstVisiblePosition
+                panel.showLines(lines, 40, around = false)
             }
             InstrumentationRegistry.getInstrumentation().waitForIdleSync()
             scenario.onActivity {
-                assertEquals("the line before\nthe line of now\nthe line after", panel.line)
-                val layout = panel.text.layout
-                val now = panel.line.indexOf("the line of now")
-                val start = panel.line.indexOf("after")
-                assertTrue("each line on its own row", layout.getLineForOffset(0) < layout.getLineForOffset(now))
-                assertTrue("each line on its own row", layout.getLineForOffset(now) < layout.getLineForOffset(start))
-                panel.selectAt(panel.middleOf(start + 1), panel.rowOf(start + 1))
-                assertEquals(start..start + 4, panel.selection)
-
-                // The same lines again change nothing; one line alone is one row again.
-                panel.showLine("the line of now", "the line before", "the line after")
-                assertEquals(start..start + 4, panel.selection)
-                panel.showLine("the line of now")
-                assertEquals("the line of now", panel.line)
-                assertNull(panel.selection)
+                assertEquals(first, panel.list.firstVisiblePosition)
+                val found = arrayListOf<android.view.View>()
+                panel.findViewsWithText(found, "Back to the line of now", android.view.View.FIND_VIEWS_WITH_CONTENT_DESCRIPTION)
+                found.single().performClick()
+                assertTrue(panel.following)
             }
+            InstrumentationRegistry.getInstrumentation().waitForIdleSync()
+            scenario.onActivity { assertEquals(40, panel.list.lastVisiblePosition) }
         }
     }
 
@@ -225,6 +310,33 @@ class OverlayViewTest {
                 assertEquals(255, panel.background.alpha)
             }
         }
+    }
+}
+
+/** The activity that shows nothing and waits for the dictionary to close. */
+@RunWith(AndroidJUnit4::class)
+class LookupActivityTest {
+
+    private val context = InstrumentationRegistry.getInstrumentation().targetContext
+
+    /** Starts a lookup of [target]. Returns what the end of the lookup said, or null when no end came. */
+    private fun lookUp(target: Intent): Boolean? {
+        val ends = LinkedBlockingQueue<Boolean>()
+        InstrumentationRegistry.getInstrumentation().runOnMainSync {
+            LookupActivity.start(context, target) { started -> ends += started }
+        }
+        return ends.poll(10, TimeUnit.SECONDS)
+    }
+
+    @Test
+    fun theLookupEndsWhenTheDictionaryCloses() {
+        // A LookupActivity without a target closes at once: it plays the part of a dictionary that the user closes.
+        assertEquals(true, lookUp(Intent(context, LookupActivity::class.java)))
+    }
+
+    @Test
+    fun aDictionaryThatDoesNotStartEndsTheLookup() {
+        assertEquals(false, lookUp(Intent("space.subread.overlay.test.NO_SUCH_DICTIONARY")))
     }
 }
 

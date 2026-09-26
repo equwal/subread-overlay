@@ -2,6 +2,7 @@ package space.subread.overlay
 
 import android.content.ComponentName
 import android.content.Context
+import android.content.Intent
 import android.graphics.PixelFormat
 import android.media.session.MediaSessionManager
 import android.os.Handler
@@ -14,7 +15,9 @@ import android.view.WindowManager
 import android.widget.Toast
 import space.subread.overlay.core.CueIndex
 import space.subread.overlay.core.LiveLines
+import space.subread.overlay.core.LookUpPause
 import space.subread.overlay.core.Srt
+import space.subread.overlay.core.Transcript
 import kotlin.concurrent.thread
 
 /**
@@ -25,7 +28,7 @@ import kotlin.concurrent.thread
  * so the panel needs no foreground service and no notification of its own.
  *
  * A caption app can send lines through [PlayerProvider]. While it does, the panel shows its
- * newest line and not the subtitle file.
+ * lines and not the subtitle file.
  */
 class MediaListener : NotificationListenerService(), OverlayView.Events {
 
@@ -35,14 +38,26 @@ class MediaListener : NotificationListenerService(), OverlayView.Events {
     private var panel: OverlayView? = null
     private val live = LiveLines()
 
+    /** The text of each line of the subtitle file, for the panel. One list for each file. */
+    private var fileLines: List<String> = emptyList()
+
     /** True while a caption app sends lines. The follower then does not draw on the panel. */
     private var liveOn = false
 
     /** True when a live line came while a word was selected: the panel shows it after the selection. */
     private var livePending = false
 
-    /** The line that the panel shows now, without the lines around it. For the Anki card. */
-    private var currentLine = ""
+    /** Decides when the player plays again after a touch on a word paused it. */
+    private val lookUpPause = LookUpPause()
+
+    /** Where the top of the panel was before it grew for a read back; null while it follows the line of now. */
+    private var browseY: Int? = null
+
+    /** The selection on the panel, for the `line` query of [PlayerProvider]. Other threads read it. */
+    @Volatile
+    var selection: OverlayView.Selection? = null
+        private set
+
     private val liveTimeout = Runnable { endLive() }
     private val params = WindowManager.LayoutParams(
         WindowManager.LayoutParams.MATCH_PARENT,
@@ -83,6 +98,7 @@ class MediaListener : NotificationListenerService(), OverlayView.Events {
         if (panel == null) {
             params.x = store.x
             params.y = store.y
+            browseY = null
             panel = OverlayView(this, this, Anki.installed(this)).also { getSystemService(WindowManager::class.java).addView(it, params) }
         }
         reload()
@@ -104,6 +120,7 @@ class MediaListener : NotificationListenerService(), OverlayView.Events {
         follower.offsetMs = store.offsetMs
         val file = store.subtitles
         if (file == null) {
+            fileLines = emptyList()
             follower.index = CueIndex(emptyList())
             return
         }
@@ -112,6 +129,7 @@ class MediaListener : NotificationListenerService(), OverlayView.Events {
                 contentResolver.openInputStream(file)!!.use { Srt.parse(it.readBytes().decodeToString()) }
             }.getOrDefault(emptyList())
             handler.post {
+                fileLines = cues.map { it.text }
                 follower.index = CueIndex(cues)
                 follower.follow(sessions.getActiveSessions(me))
             }
@@ -121,6 +139,10 @@ class MediaListener : NotificationListenerService(), OverlayView.Events {
     private fun removePanel() {
         panel?.let { getSystemService(WindowManager::class.java).removeView(it) }
         panel = null
+        selection = null
+        // The panel comes back at the place that the user chose, not at the place of a read back.
+        browseY?.let { params.y = it }
+        browseY = null
     }
 
     /**
@@ -153,14 +175,19 @@ class MediaListener : NotificationListenerService(), OverlayView.Events {
             livePending = false
             live.clear()
             handler.removeCallbacks(liveTimeout)
-            if (panel != null) reload()
+            if (panel != null) {
+                // The rows of the live lines go away: a selection in them too.
+                panel?.clearSelection()
+                reload()
+            }
         }
         return PlayerProvider.LIVE_OK
     }
 
     /**
-     * Shows the newest live line. While a word is selected, the line waits: a line that changes
-     * under the finger would take the selection away before the lookup.
+     * Shows the live lines: the final lines, then the newest line. While a word is selected, the
+     * newest line waits: a line that changes under the finger would take the selection away
+     * before the lookup.
      */
     private fun showLive() {
         val view = panel ?: return
@@ -169,9 +196,8 @@ class MediaListener : NotificationListenerService(), OverlayView.Events {
             return
         }
         livePending = false
-        val now = if (live.partial) live.now + " …" else live.now
-        currentLine = live.now
-        if (store.linesAround) view.showLine(now, live.before, null) else view.showLine(now)
+        val rows = live.history + if (live.partial) live.now + " …" else live.now
+        view.showLines(rows, rows.lastIndex, store.linesAround)
     }
 
     private fun show(at: Int, hasPlayer: Boolean, playing: Boolean) {
@@ -182,27 +208,43 @@ class MediaListener : NotificationListenerService(), OverlayView.Events {
         }
         view.showPlaying(playing)
         val cues = follower.index.cues
-        val line = cues.getOrNull(at)?.text
-        currentLine = line ?: ""
         when {
             store.subtitles == null -> view.showStatus(getString(R.string.status_no_file))
             cues.isEmpty() -> view.showStatus(getString(R.string.status_empty_file))
             !hasPlayer -> view.showStatus(getString(R.string.status_no_player))
-            line == null -> view.showStatus(getString(R.string.status_before_first_line))
-            store.linesAround -> view.showLine(line, cues.getOrNull(at - 1)?.text, cues.getOrNull(at + 1)?.text)
-            else -> view.showLine(line)
+            at < 0 -> view.showStatus(getString(R.string.status_before_first_line))
+            else -> view.showLines(fileLines, at, store.linesAround)
         }
     }
 
     override fun onDrag(dx: Float, dy: Float) {
         params.x += dx.toInt()
         params.y += dy.toInt()
+        browseY = browseY?.plus(dy.toInt())
         panel?.let { getSystemService(WindowManager::class.java).updateViewLayout(it, params) }
     }
 
     override fun onDragEnd() {
         store.x = params.x
-        store.y = params.y
+        store.y = browseY ?: params.y
+    }
+
+    /** The panel grows for a read back, with its bottom edge where it is, or goes back to its place. */
+    override fun onGrow(extra: Int): Int {
+        val view = panel ?: return 0
+        val manager = getSystemService(WindowManager::class.java)
+        if (extra <= 0) {
+            browseY?.let {
+                params.y = it
+                browseY = null
+                manager.updateViewLayout(view, params)
+            }
+            return 0
+        }
+        val top = browseY ?: params.y.also { browseY = it }
+        params.y = Transcript.grownTop(top, extra)
+        manager.updateViewLayout(view, params)
+        return top - params.y
     }
 
     override fun onClose() = hidePanel()
@@ -211,15 +253,34 @@ class MediaListener : NotificationListenerService(), OverlayView.Events {
         if (liveOn && livePending) showLive()
     }
 
-    /** The player pauses for the lookup. The play button of the panel starts it again. */
+    override fun onSelection(selection: OverlayView.Selection?) {
+        this.selection = selection?.copy(live = liveOn)
+    }
+
+    /** The player pauses for the lookup. It plays again when the dictionary closes. */
     override fun onTouchWord() {
-        follower.pause()
+        lookUpPause.touched(follower.pause())
+    }
+
+    /** The touch on a word became a scroll: the player plays again if the touch paused it. */
+    override fun onTouchScrolled() {
+        if (lookUpPause.scrolled()) follower.play()
     }
 
     override fun onLookUp(word: String) {
-        follower.pause()
-        runCatching { startActivity(Lookup.intent(word, store.dictionary)) }.onFailure {
-            Toast.makeText(this, R.string.no_dictionary, Toast.LENGTH_LONG).show()
+        lookUp(Lookup.intent(word, store.dictionary), R.string.no_dictionary)
+    }
+
+    /**
+     * Opens [target] over the player. When it closes, the selection goes away, and the player
+     * plays again if the touch paused it. When it does not start, a toast shows [failure].
+     */
+    private fun lookUp(target: Intent, failure: Int) {
+        lookUpPause.opened()
+        LookupActivity.start(this, target) { started ->
+            if (!started) Toast.makeText(this, failure, Toast.LENGTH_LONG).show()
+            panel?.clearSelection()
+            if (lookUpPause.closed()) follower.play()
         }
     }
 
@@ -229,24 +290,25 @@ class MediaListener : NotificationListenerService(), OverlayView.Events {
     }
 
     /**
-     * The word and the line go to SubRead Anki. The panel hides for a moment, so that the
-     * screenshot of SubRead Anki shows the player and not the panel.
+     * The word and its line go to SubRead Anki. The panel hides for a moment, so that the
+     * screenshot of SubRead Anki shows the player and not the panel. When the pop-up of SubRead
+     * Anki closes, the selection goes away, the same as after a lookup.
      */
     override fun onAnki(word: String) {
-        follower.pause()
+        lookUpPause.touched(follower.pause())
         val view = panel ?: return
         val source = follower.title ?: follower.player?.let { pkg ->
             runCatching { packageManager.getApplicationLabel(packageManager.getApplicationInfo(pkg, 0)).toString() }.getOrNull()
         } ?: ""
-        val intent = Anki.intent(word, currentLine, source)
+        val intent = Anki.intent(word, view.selection?.text.orEmpty(), source)
         view.visibility = View.INVISIBLE
-        handler.postDelayed({
-            runCatching { startActivity(intent) }.onFailure { Toast.makeText(this, R.string.no_anki, Toast.LENGTH_SHORT).show() }
-        }, ANKI_HIDE_MS)
+        handler.postDelayed({ lookUp(intent, R.string.no_anki) }, ANKI_HIDE_MS)
         handler.postDelayed({ panel?.visibility = View.VISIBLE }, ANKI_SHOW_MS)
     }
 
     override fun onTogglePlay() {
+        // The user controls the player now: the end of the lookup does not start it.
+        lookUpPause.toggled()
         if (!follower.pause()) follower.play()
     }
 

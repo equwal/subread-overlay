@@ -77,8 +77,7 @@ object Lookup {
         val send = probe()
             .putExtra(Intent.EXTRA_PROCESS_TEXT, word)
             .putExtra(Intent.EXTRA_PROCESS_TEXT_READONLY, true)
-        val target = if (chosen != null) send.setComponent(chosen) else Intent.createChooser(send, null)
-        // The panel is not an activity.
-        return target.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        // LookupActivity starts it for a result, so it has no FLAG_ACTIVITY_NEW_TASK.
+        return if (chosen != null) send.setComponent(chosen) else Intent.createChooser(send, null)
     }
 }

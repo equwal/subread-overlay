@@ -21,12 +21,14 @@ object Anki {
     fun installed(context: Context): Boolean =
         context.packageManager.resolveActivity(Intent(ACTION_ADD).setPackage(PACKAGE), 0) != null
 
-    /** The intent for one card. The panel is not an activity, so the intent starts a new task. */
+    /**
+     * The intent for one card. LookupActivity starts it for a result, so that the panel knows
+     * when the pop-up of SubRead Anki closes. So it has no FLAG_ACTIVITY_NEW_TASK.
+     */
     fun intent(word: String, line: String, source: String): Intent = Intent(ACTION_ADD)
         .setPackage(PACKAGE)
         .putExtra(EXTRA_WORD, word)
         .putExtra(EXTRA_SENTENCE, line)
         .putExtra(EXTRA_SOURCE, source)
         .putExtra(EXTRA_SCREENSHOT, true)
-        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
 }
