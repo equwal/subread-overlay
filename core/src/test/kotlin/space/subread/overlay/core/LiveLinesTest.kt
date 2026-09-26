@@ -28,7 +28,19 @@ class LiveLinesTest {
             assertEquals(last?.second == true, lines.partial)
             val finalsBefore = feed.dropLast(1).filter { !it.second }
             assertEquals(finalsBefore.lastOrNull()?.first, lines.before)
+            assertEquals("the history is each final line before the newest line", finalsBefore.map { it.first }, lines.history)
         }
+    }
+
+    @Test
+    fun theHistoryKeepsTheNewestFinalLines() {
+        val lines = LiveLines()
+        repeat(LiveLines.MAX_HISTORY + 5) { lines.line("line $it", partial = false) }
+        assertEquals(LiveLines.MAX_HISTORY, lines.history.size)
+        assertEquals("line 4", lines.history.first())
+        assertEquals("line ${LiveLines.MAX_HISTORY + 3}", lines.history.last())
+        lines.clear()
+        assertEquals(emptyList<String>(), lines.history)
     }
 
     @Test

@@ -22,9 +22,19 @@ class LiveLines {
     var before: String? = null
         private set
 
+    private val finals = ArrayDeque<String>()
+
+    /** The final lines before [now], the oldest first: the user scrolls back through them. At most [MAX_HISTORY]. */
+    val history: List<String>
+        get() = finals
+
     /** A new line from the caption app. */
     fun line(text: String, partial: Boolean) {
-        if (!this.partial && now.isNotEmpty()) before = now
+        if (!this.partial && now.isNotEmpty()) {
+            before = now
+            finals.addLast(now)
+            if (finals.size > MAX_HISTORY) finals.removeFirst()
+        }
         now = text
         this.partial = partial
     }
@@ -34,5 +44,11 @@ class LiveLines {
         now = ""
         partial = false
         before = null
+        finals.clear()
+    }
+
+    companion object {
+        /** The history keeps this many final lines. An hour of speech has fewer. */
+        const val MAX_HISTORY = 1000
     }
 }
