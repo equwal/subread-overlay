@@ -128,6 +128,14 @@ flash card app can put the line on a card and cut its sound. The columns:
 - `index`, `start`, `end`, `text`, `before`, `after`: the line. `index` is -1
   before the first line, and `text` is then null. The times are on the clock
   of the subtitle file.
+- `selected`, `selection`, `selection_start`, `selection_end`: while a word is
+  selected on the panel, the row gives the line of the selection in place of
+  the line of now, because the user can scroll back and select a word in an
+  older line. Then `selected` is 1, `selection` is the selected text, and
+  `selection_start` and `selection_end` are where it is in `text` (the end is
+  not in it). A line of a caption app has no times: `index` is -1, and
+  `start`, `end`, `before` and `after` are null. Without a selection, or with
+  `position`, `selected` is 0 and the other three are null.
 
 The query parameter `position` (milliseconds, on the clock of the player)
 picks the line for that position in place of the position of now. The panel

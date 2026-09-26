@@ -37,6 +37,14 @@ import space.subread.overlay.core.Srt
  * query parameter `position` (milliseconds, on the clock of the player) picks the line for
  * that position in place of the position of now.
  *
+ * While the user has a selection on the panel, and the query has no `position`, the row gives
+ * the line of the selection in place of the line of now: the user can scroll back and select a
+ * word in an older line. Then `selected` is 1, `selection` is the selected text, and
+ * `selection_start` and `selection_end` are where it is in `text` (the end is not in it). A
+ * line of a caption app has no times: `index` is -1, and `start`, `end`, `before` and `after`
+ * are null. Without a selection, or with `position`, `selected` is 0 and the three selection
+ * columns are null.
+ *
  * `call` takes the method `play`, `pause` or `seek` (the argument is the position in
  * milliseconds), and returns the state line in the bundle key `state`.
  *
@@ -109,7 +117,11 @@ class PlayerProvider : ContentProvider() {
         return stateLine(state, player.packageName, SystemClock.elapsedRealtime())
     }
 
-    /** The `line` row: the report of the player as it came, and the line for its position of now, or for [positionOverride]. */
+    /**
+     * The `line` row: the report of the player as it came, and the line for its position of now,
+     * or for [positionOverride]. Without [positionOverride], the line of the selection on the
+     * panel wins.
+     */
     private fun lineRow(positionOverride: Long?): Cursor {
         val cursor = MatrixCursor(LINE_COLUMNS)
         val state = runCatching { player()?.playbackState }.getOrNull()
@@ -123,13 +135,22 @@ class PlayerProvider : ContentProvider() {
         val position = positionOverride
             ?: if (reportedPosition >= 0) PlayClock(reportedPosition, reportedAt, speed, playing).positionAt(nowMs) else null
         val index = subtitles(store)
-        val at = if (position != null && index != null) index.indexAt(position + offset) else -1
         val cues = index?.cues.orEmpty()
+        val picked = if (positionOverride == null) MediaListener.instance?.selection else null
+        val at = when {
+            // The line of the selection has times only when it is the line of the file at that row.
+            picked != null -> picked.row.takeIf { !picked.live && cues.getOrNull(it)?.text == picked.text } ?: -1
+            position != null && index != null -> index.indexAt(position + offset)
+            else -> -1
+        }
         val cue = cues.getOrNull(at)
+        val text = picked?.text ?: cue?.text
+        val selected = if (picked == null) arrayOf<Any?>(0, null, null, null) else arrayOf<Any?>(1, picked.words, picked.range.first, picked.range.last + 1)
         cursor.addRow(
             arrayOf<Any?>(
                 stateLine(), reportedPosition, reportedAt, speed, if (playing) 1 else 0, offset,
-                at, cue?.startMs, cue?.endMs, cue?.text, cues.getOrNull(at - 1)?.text, cues.getOrNull(at + 1)?.text,
+                at, cue?.startMs, cue?.endMs, text, cue?.let { cues.getOrNull(at - 1)?.text }, cue?.let { cues.getOrNull(at + 1)?.text },
+                *selected,
             ),
         )
         return cursor
@@ -183,9 +204,14 @@ class PlayerProvider : ContentProvider() {
         const val COLUMN_TEXT = "text"
         const val COLUMN_BEFORE = "before"
         const val COLUMN_AFTER = "after"
+        const val COLUMN_SELECTED = "selected"
+        const val COLUMN_SELECTION = "selection"
+        const val COLUMN_SELECTION_START = "selection_start"
+        const val COLUMN_SELECTION_END = "selection_end"
         val LINE_COLUMNS = arrayOf(
             COLUMN_STATE, COLUMN_REPORTED_POSITION, COLUMN_REPORTED_AT, COLUMN_SPEED, COLUMN_PLAYING, COLUMN_OFFSET,
             COLUMN_INDEX, COLUMN_START, COLUMN_END, COLUMN_TEXT, COLUMN_BEFORE, COLUMN_AFTER,
+            COLUMN_SELECTED, COLUMN_SELECTION, COLUMN_SELECTION_START, COLUMN_SELECTION_END,
         )
         const val METHOD_PLAY = "play"
         const val METHOD_PAUSE = "pause"

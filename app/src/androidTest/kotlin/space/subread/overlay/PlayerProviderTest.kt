@@ -118,6 +118,11 @@ class PlayerProviderTest {
                 assertEquals(1_000L, it.getLong(it.getColumnIndexOrThrow(PlayerProvider.COLUMN_OFFSET)))
                 assertEquals("First line.", it.getString(it.getColumnIndexOrThrow(PlayerProvider.COLUMN_BEFORE)))
                 assertTrue(it.isNull(it.getColumnIndexOrThrow(PlayerProvider.COLUMN_AFTER)))
+                // A query with a position gives the line of that position, not the selection.
+                assertEquals(0L, it.getLong(it.getColumnIndexOrThrow(PlayerProvider.COLUMN_SELECTED)))
+                assertTrue(it.isNull(it.getColumnIndexOrThrow(PlayerProvider.COLUMN_SELECTION)))
+                assertTrue(it.isNull(it.getColumnIndexOrThrow(PlayerProvider.COLUMN_SELECTION_START)))
+                assertTrue(it.isNull(it.getColumnIndexOrThrow(PlayerProvider.COLUMN_SELECTION_END)))
             }
             // Before the first line: no text.
             val at10 = lineUri.buildUpon().appendQueryParameter(PlayerProvider.PARAM_POSITION, "10000").build()
