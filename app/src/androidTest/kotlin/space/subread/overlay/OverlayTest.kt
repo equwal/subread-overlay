@@ -8,9 +8,12 @@ import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
 import android.view.ViewGroup
+import android.view.WindowManager
 import androidx.test.core.app.ActivityScenario
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import androidx.test.runner.lifecycle.ActivityLifecycleMonitorRegistry
+import androidx.test.runner.lifecycle.Stage
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -337,6 +340,30 @@ class LookupActivityTest {
     @Test
     fun aDictionaryThatDoesNotStartEndsTheLookup() {
         assertEquals(false, lookUp(Intent("space.subread.overlay.test.NO_SUCH_DICTIONARY")))
+    }
+
+    /** The empty window of the lookup lets each touch through to the player, also while SubRead Anki records. */
+    @Test
+    fun theWindowOfTheLookupTakesNoTouch() {
+        val ends = LinkedBlockingQueue<Boolean>()
+        val instrumentation = InstrumentationRegistry.getInstrumentation()
+        // The settings screen of this app plays the part of the dictionary: it stays open over the lookup.
+        instrumentation.runOnMainSync { LookupActivity.start(context, Intent(context, MainActivity::class.java)) { ends += it } }
+        fun find(kind: Class<*>): android.app.Activity? {
+            var found: android.app.Activity? = null
+            val until = SystemClock.elapsedRealtime() + 5_000
+            while (found == null && SystemClock.elapsedRealtime() < until) {
+                instrumentation.runOnMainSync {
+                    found = Stage.entries.flatMap { ActivityLifecycleMonitorRegistry.getInstance().getActivitiesInStage(it) }.firstOrNull { kind.isInstance(it) }
+                }
+                if (found == null) Thread.sleep(50)
+            }
+            return found
+        }
+        val lookup = find(LookupActivity::class.java)!!
+        assertTrue(lookup.window.attributes.flags and WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE != 0)
+        instrumentation.runOnMainSync { find(MainActivity::class.java)?.finish() }
+        assertEquals("the dictionary closed", true, ends.poll(10, TimeUnit.SECONDS))
     }
 }
 

@@ -47,8 +47,17 @@ class LiveLines {
         finals.clear()
     }
 
+    /** The rows of the panel: the final lines, then the newest line. A partial line ends with [PARTIAL_MARK]. */
+    fun rows(): List<String> = history + if (partial) now + PARTIAL_MARK else now
+
     companion object {
         /** The history keeps this many final lines. An hour of speech has fewer. */
         const val MAX_HISTORY = 1000
+
+        /** The end of a partial line on the panel: the speech goes on. */
+        const val PARTIAL_MARK = " …"
+
+        /** A row of the panel without the mark of a partial line: the text of the line, for a card. */
+        fun plain(row: String): String = row.removeSuffix(PARTIAL_MARK)
     }
 }

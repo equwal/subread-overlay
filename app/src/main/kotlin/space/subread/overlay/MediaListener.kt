@@ -196,7 +196,7 @@ class MediaListener : NotificationListenerService(), OverlayView.Events {
             return
         }
         livePending = false
-        val rows = live.history + if (live.partial) live.now + " …" else live.now
+        val rows = live.rows()
         view.showLines(rows, rows.lastIndex, store.linesAround)
     }
 
@@ -254,7 +254,19 @@ class MediaListener : NotificationListenerService(), OverlayView.Events {
     }
 
     override fun onSelection(selection: OverlayView.Selection?) {
-        this.selection = selection?.copy(live = liveOn)
+        this.selection = if (selection == null || !liveOn) selection else live(selection)
+    }
+
+    /**
+     * A selection in a live line, for a card. The partial line of now has a mark at its end on
+     * the panel: the card gets the line without it, and a selection stops before it.
+     */
+    private fun live(selection: OverlayView.Selection): OverlayView.Selection? {
+        val isNow = selection.row == live.history.size
+        val text = if (isNow && live.partial) LiveLines.plain(selection.text) else selection.text
+        val last = selection.range.last.coerceAtMost(text.lastIndex)
+        if (last < selection.range.first) return null
+        return selection.copy(text = text, range = selection.range.first..last, live = true)
     }
 
     /** The player pauses for the lookup. It plays again when the dictionary closes. */
@@ -300,7 +312,8 @@ class MediaListener : NotificationListenerService(), OverlayView.Events {
         val source = follower.title ?: follower.player?.let { pkg ->
             runCatching { packageManager.getApplicationLabel(packageManager.getApplicationInfo(pkg, 0)).toString() }.getOrNull()
         } ?: ""
-        val intent = Anki.intent(word, view.selection?.text.orEmpty(), source)
+        // The line of the selection, without the mark of a partial live line.
+        val intent = Anki.intent(word, selection?.text.orEmpty(), source)
         view.visibility = View.INVISIBLE
         handler.postDelayed({ lookUp(intent, R.string.no_anki) }, ANKI_HIDE_MS)
         handler.postDelayed({ panel?.visibility = View.VISIBLE }, ANKI_SHOW_MS)

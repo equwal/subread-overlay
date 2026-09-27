@@ -329,16 +329,17 @@ class OverlayView(context: Context, private val events: Events, anki: Boolean = 
         nowButton.visibility = VISIBLE
         val old = list.height
         browseHeight = maxOf(old, browseMinHeight())
-        val up = events.onGrow(browseHeight - old)
-        // The top of the list went up on the screen: the rows move down in the list by the same
-        // distance, so that they stay under the finger.
-        list.setSelectionFromTop(list.firstVisiblePosition, (list.getChildAt(0)?.top ?: 0) + up)
+        // The window goes up, and the rows go up with it. The finger is then lower in the list by
+        // the same distance, so the next move of the scroll brings the rows back under the finger.
+        events.onGrow(browseHeight - old)
         list.requestLayout()
     }
 
     /** The list follows the line of now again, and the panel goes back to its height and place. */
     private fun follow() {
         if (following) return
+        // A fling that still moves the list would start a read back again.
+        list.smoothScrollBy(0, 0)
         following = true
         nowButton.visibility = GONE
         list.transcriptMode = AbsListView.TRANSCRIPT_MODE_ALWAYS_SCROLL

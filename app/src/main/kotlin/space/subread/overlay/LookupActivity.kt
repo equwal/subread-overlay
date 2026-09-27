@@ -4,6 +4,7 @@ import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
+import android.view.WindowManager
 import androidx.core.content.IntentCompat
 
 /**
@@ -19,6 +20,9 @@ class LookupActivity : Activity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // The window of this activity covers the screen, but it shows nothing. A touch must go
+        // through it to the player below: SubRead Anki lets the user use the player while it records.
+        window.addFlags(WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE)
         // Android made this activity again, after a rotation or a stop of the process. The
         // dictionary is still open over it: the activity waits for its result.
         if (savedInstanceState == null) take(intent)

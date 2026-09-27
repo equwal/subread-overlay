@@ -32,6 +32,28 @@ class LiveLinesTest {
         }
     }
 
+    /** The panel shows each final line and the newest line; the text of each row without its mark is the line. */
+    @Test
+    fun theRowsAreTheLinesAndThePlainRowIsTheLine(): Unit = runBlocking {
+        checkAll(feeds) { feed ->
+            val lines = LiveLines()
+            feed.forEach { (text, partial) -> lines.line(text, partial) }
+            if (feed.isEmpty()) return@checkAll
+            val rows = lines.rows()
+            assertEquals(lines.history, rows.dropLast(1))
+            assertEquals(lines.partial, rows.last().endsWith(LiveLines.PARTIAL_MARK))
+            assertEquals("a card gets the line, not the mark", lines.now, LiveLines.plain(rows.last()))
+        }
+    }
+
+    @Test
+    fun aPartialLineHasTheMarkOnThePanelOnly() {
+        val lines = LiveLines()
+        lines.line("It was a dark", partial = true)
+        assertEquals(listOf("It was a dark …"), lines.rows())
+        assertEquals("It was a dark", LiveLines.plain(lines.rows().last()))
+    }
+
     @Test
     fun theHistoryKeepsTheNewestFinalLines() {
         val lines = LiveLines()
